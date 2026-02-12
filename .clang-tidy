@@ -1,0 +1,74 @@
+---
+# clang-tidy configuration for SH-3DS (C++20)
+#
+# C++20 Feature Coverage:
+# - Concepts: Enabled via modernize-* checks
+# - Ranges: Enabled via modernize-use-ranges-* checks
+# - constexpr/consteval: Enabled via modernize-use-constexpr
+# - [[nodiscard]]: Enabled via modernize-use-nodiscard
+# - Structured bindings: Enabled via modernize-*
+#
+# The wildcard "*" enables all checks by default, including C++20-aware checks.
+# We explicitly disable vendor-specific and opinionated check groups below.
+Checks: "*,
+        -abseil-*,
+        -altera-*,
+        -android-*,
+        -fuchsia-*,
+        -google-*,
+        -llvm*,
+        -modernize-use-trailing-return-type,
+        -zircon-*,
+        -readability-else-after-return,
+        -readability-static-accessed-through-instance,
+        -readability-avoid-const-params-in-decls,
+        -cppcoreguidelines-non-private-member-variables-in-classes,
+        -misc-non-private-member-variables-in-classes,
+"
+
+WarningsAsErrors: ''
+HeaderFilterRegex: ''
+FormatStyle: none
+
+CheckOptions:
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: CamelCase
+  - key: readability-identifier-naming.MethodCase
+    value: CamelCase
+  - key: readability-identifier-naming.VariableCase
+    value: camelBack
+  - key: readability-identifier-naming.ParameterCase
+    value: camelBack
+  - key: readability-identifier-naming.MemberCase
+    value: camelBack
+  - key: readability-identifier-naming.PrivateMemberCase
+    value: camelBack
+  - key: readability-identifier-naming.ProtectedMemberCase
+    value: camelBack
+  - key: readability-identifier-naming.PublicMemberCase
+    value: camelBack
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+  - key: readability-identifier-naming.TemplateParameterCase
+    value: CamelCase
+  - key: readability-identifier-naming.TypeAliasCase
+    value: CamelCase
+  - key: readability-identifier-naming.ConceptCase
+    value: CamelCase
+  - key: readability-identifier-length.IgnoredVariableNames
+    value: 'x|y|z'
+  - key: readability-identifier-length.IgnoredParameterNames
+    value: 'x|y|z'
+  - key: modernize-use-default-member-init.UseAssignment
+    value: true
+  - key: performance-unnecessary-value-param.AllowedTypes
+    value: 'cv::Mat'
+...

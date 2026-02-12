@@ -1,0 +1,15 @@
+{
+    "name": "sh3ds",
+    "version": "0.1.0",
+    "description": "SH-3DS: Networked Shiny Hunting Bot (Vision-driven)",
+    "dependencies": [
+        {
+            "name": "opencv4",
+            "features": ["ffmpeg", "jpeg", "png"]
+        },
+        "spdlog",
+        "yaml-cpp",
+        "gtest",
+        "cli11"
+    ]
+}
