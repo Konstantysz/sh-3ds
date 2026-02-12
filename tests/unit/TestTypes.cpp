@@ -141,7 +141,6 @@ TEST(HuntDecision, ConstructWithAction)
 {
     SH3DS::Core::HuntDecision decision{
         .action = SH3DS::Core::HuntAction::SendInput,
-        .input = InputCommand{},
         .reason = "press A on title screen",
         .delay = std::chrono::milliseconds(100),
     };

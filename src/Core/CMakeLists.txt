@@ -12,8 +12,6 @@ target_link_libraries(
     opencv_core
     spdlog::spdlog
     yaml-cpp::yaml-cpp
-  PRIVATE
-    SH3DS::Input
 )
 
 sh3ds_set_warnings(sh3ds_core)

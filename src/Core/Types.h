@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Input/InputCommand.h"
-
 #include <opencv2/core.hpp>
 
 #include <chrono>
@@ -94,7 +92,6 @@ namespace SH3DS::Core
     struct HuntDecision
     {
         HuntAction action = HuntAction::Wait;                           ///< Action to take
-        Input::InputCommand input;                                      ///< Input command to send
         std::string reason;                                             ///< Reason for the decision
         std::chrono::milliseconds delay = std::chrono::milliseconds(0); ///< Delay before next action
     };

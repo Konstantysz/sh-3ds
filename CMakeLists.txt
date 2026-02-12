@@ -21,15 +21,18 @@ find_package(yaml-cpp REQUIRED)
 find_package(CLI11 REQUIRED)
 
 add_subdirectory(src/Core)
+add_subdirectory(src/Input)
 
-target_link_libraries(
-  sh3ds
-  PRIVATE
-    SH3DS::Orchestrator
-    CLI11::CLI11
-)
-
-sh3ds_set_warnings(sh3ds)
+# TODO: re-enable once namespace migration is complete
+# add_subdirectory(src/Capture)
+# add_subdirectory(src/FSM)
+# add_subdirectory(src/Vision)
+# add_subdirectory(src/Strategy)
+# add_subdirectory(src/Orchestrator)
+#
+# add_executable(sh3ds src/Main.cpp)
+# target_link_libraries(sh3ds PRIVATE SH3DS::Orchestrator CLI11::CLI11)
+# sh3ds_set_warnings(sh3ds)
 
 option(SH3DS_BUILD_TESTS "Build tests" ON)
 
