@@ -23,9 +23,9 @@ find_package(CLI11 REQUIRED)
 add_subdirectory(src/Core)
 add_subdirectory(src/Input)
 add_subdirectory(src/Capture)
+add_subdirectory(src/FSM)
 
 # TODO: re-enable once namespace migration is complete
-# add_subdirectory(src/FSM)
 # add_subdirectory(src/Vision)
 # add_subdirectory(src/Strategy)
 # add_subdirectory(src/Orchestrator)

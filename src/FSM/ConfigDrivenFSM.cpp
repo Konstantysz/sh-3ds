@@ -1,0 +1,225 @@
+#include "ConfigDrivenFSM.h"
+
+#include "Core/Logging.h"
+
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
+
+namespace SH3DS::FSM
+{
+    ConfigDrivenFSM::ConfigDrivenFSM(Core::GameProfile profile) : profile(std::move(profile))
+    {
+        Reset();
+    }
+
+    std::optional<Core::StateTransition> ConfigDrivenFSM::Update(const Core::ROISet &rois)
+    {
+        auto result = EvaluateRules(rois);
+
+        if (result.state.empty() || result.confidence < 0.01)
+        {
+            pendingFrameCount = 0;
+            return std::nullopt;
+        }
+
+        // Debounce: require N consecutive frames detecting the same new state
+        if (result.state != currentState)
+        {
+            if (result.state == pendingState)
+            {
+                ++pendingFrameCount;
+            }
+            else
+            {
+                pendingState = result.state;
+                pendingFrameCount = 1;
+            }
+
+            if (pendingFrameCount >= profile.debounceFrames)
+            {
+                auto now = std::chrono::steady_clock::now();
+                Core::StateTransition transition{
+                    .from = currentState,
+                    .to = result.state,
+                    .timestamp = now,
+                };
+
+                currentState = result.state;
+                stateEnteredAt = now;
+                pendingState.clear();
+                pendingFrameCount = 0;
+
+                // Cap history to prevent unbounded growth
+                if (history.size() > 1000)
+                {
+                    history.erase(history.begin(), history.begin() + 500);
+                }
+                history.push_back(transition);
+
+                return transition;
+            }
+        }
+        else
+        {
+            pendingState.clear();
+            pendingFrameCount = 0;
+        }
+
+        return std::nullopt;
+    }
+
+    Core::GameState ConfigDrivenFSM::CurrentState() const
+    {
+        return currentState;
+    }
+
+    std::chrono::milliseconds ConfigDrivenFSM::TimeInCurrentState() const
+    {
+        auto now = std::chrono::steady_clock::now();
+        return std::chrono::duration_cast<std::chrono::milliseconds>(now - stateEnteredAt);
+    }
+
+    bool ConfigDrivenFSM::IsStuck() const
+    {
+        for (const auto &stateDef : profile.states)
+        {
+            if (stateDef.id == currentState)
+            {
+                auto maxDuration = std::chrono::seconds(stateDef.maxDurationS);
+                return TimeInCurrentState() > maxDuration;
+            }
+        }
+        // Unknown state — use a default timeout
+        return TimeInCurrentState() > std::chrono::seconds(120);
+    }
+
+    void ConfigDrivenFSM::ForceState(const Core::GameState &state)
+    {
+        auto now = std::chrono::steady_clock::now();
+        Core::StateTransition transition{
+            .from = currentState,
+            .to = state,
+            .timestamp = now,
+        };
+        currentState = state;
+        stateEnteredAt = now;
+        pendingState.clear();
+        pendingFrameCount = 0;
+        history.push_back(transition);
+    }
+
+    void ConfigDrivenFSM::Reset()
+    {
+        currentState = profile.initialState;
+        stateEnteredAt = std::chrono::steady_clock::now();
+        pendingState.clear();
+        pendingFrameCount = 0;
+        history.clear();
+    }
+
+    const std::vector<Core::StateTransition> &ConfigDrivenFSM::History() const
+    {
+        return history;
+    }
+
+    ConfigDrivenFSM::DetectionResult ConfigDrivenFSM::EvaluateRules(const Core::ROISet &rois) const
+    {
+        DetectionResult bestResult;
+
+        for (const auto &stateDef : profile.states)
+        {
+            const auto &rule = stateDef.detection;
+            auto it = rois.find(rule.roi);
+            if (it == rois.end() || it->second.empty())
+            {
+                continue;
+            }
+
+            const cv::Mat &roiMat = it->second;
+            double confidence = 0.0;
+
+            if (rule.method == "template_match")
+            {
+                confidence = EvaluateTemplateMatch(roiMat, rule);
+            }
+            else if (rule.method == "color_histogram")
+            {
+                confidence = EvaluateColorHistogram(roiMat, rule);
+            }
+
+            if (confidence >= rule.threshold && confidence > bestResult.confidence)
+            {
+                bestResult.state = stateDef.id;
+                bestResult.confidence = confidence;
+            }
+        }
+
+        return bestResult;
+    }
+
+    double ConfigDrivenFSM::EvaluateTemplateMatch(const cv::Mat &roi, const Core::StateDetectionRule &rule) const
+    {
+        if (rule.templatePath.empty())
+        {
+            return 0.0;
+        }
+
+        // Lazy-load template (mutable cache via const_cast — acceptable for caching)
+        auto &cache = const_cast<std::map<std::string, cv::Mat> &>(templateCache);
+        auto it = cache.find(rule.templatePath);
+        if (it == cache.end())
+        {
+            cv::Mat tmpl = cv::imread(rule.templatePath, cv::IMREAD_COLOR);
+            if (tmpl.empty())
+            {
+                LOG_WARN("Failed to load template: {}", rule.templatePath);
+                return 0.0;
+            }
+            cache[rule.templatePath] = tmpl;
+            it = cache.find(rule.templatePath);
+        }
+
+        const cv::Mat &tmpl = it->second;
+
+        // Resize template to match ROI if sizes differ
+        cv::Mat resizedTmpl;
+        if (tmpl.size() != roi.size())
+        {
+            cv::resize(tmpl, resizedTmpl, roi.size());
+        }
+        else
+        {
+            resizedTmpl = tmpl;
+        }
+
+        // Use normalized cross-correlation
+        cv::Mat result;
+        cv::matchTemplate(roi, resizedTmpl, result, cv::TM_CCORR_NORMED);
+
+        double minVal, maxVal;
+        cv::minMaxLoc(result, &minVal, &maxVal);
+        return maxVal;
+    }
+
+    double ConfigDrivenFSM::EvaluateColorHistogram(const cv::Mat &roi, const Core::StateDetectionRule &rule) const
+    {
+        cv::Mat hsv;
+        cv::cvtColor(roi, hsv, cv::COLOR_BGR2HSV);
+
+        cv::Mat mask;
+        cv::inRange(hsv, rule.hsvLower, rule.hsvUpper, mask);
+
+        double pixelRatio = cv::countNonZero(mask) / static_cast<double>(roi.total());
+
+        if (pixelRatio >= rule.pixelRatioMin && pixelRatio <= rule.pixelRatioMax)
+        {
+            // Confidence is 1.0 at midpoint, 0.5 at boundaries of [min, max] range
+            double midpoint = (rule.pixelRatioMin + rule.pixelRatioMax) / 2.0;
+            double halfRange = (rule.pixelRatioMax - rule.pixelRatioMin) / 2.0;
+            double distance = std::abs(pixelRatio - midpoint);
+            return halfRange > 0.0 ? 1.0 - 0.5 * (distance / halfRange) : 1.0;
+        }
+
+        return 0.0;
+    }
+} // namespace SH3DS::FSM

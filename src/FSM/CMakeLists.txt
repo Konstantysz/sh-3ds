@@ -1,0 +1,18 @@
+add_library(sh3ds_fsm STATIC ConfigDrivenFSM.cpp)
+add_library(SH3DS::FSM ALIAS sh3ds_fsm)
+
+target_include_directories(
+  sh3ds_fsm
+  PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
+)
+
+target_link_libraries(
+  sh3ds_fsm
+  PUBLIC
+    SH3DS::Core
+    opencv_core
+    opencv_imgproc
+    opencv_imgcodecs
+)
+
+sh3ds_set_warnings(sh3ds_fsm)
