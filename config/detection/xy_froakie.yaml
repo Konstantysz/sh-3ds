@@ -1,0 +1,32 @@
+detection:
+  profile_id: "xy_froakie"
+  game: "pokemon_xy"
+  pokemon: "froakie"
+
+  methods:
+    - method: "dominant_color"
+      weight: 0.5
+      normal_hsv_lower: [100, 100, 60]
+      normal_hsv_upper: [130, 255, 200]
+      shiny_hsv_lower: [95, 25, 170]
+      shiny_hsv_upper: [135, 110, 255]
+      shiny_ratio_threshold: 0.12
+      normal_ratio_threshold: 0.12
+
+    - method: "histogram_compare"
+      weight: 0.3
+      reference_normal: "assets/histograms/pokemon_xy/froakie_normal.yml"
+      reference_shiny: "assets/histograms/pokemon_xy/froakie_shiny.yml"
+      compare_method: "correlation"
+      differential_threshold: 0.15
+
+    - method: "sparkle"
+      weight: 0.2
+      sparkle_roi: "sparkle_region"
+      brightness_threshold: 240
+      min_bright_pixel_ratio: 0.005
+      min_consecutive_frames: 3
+
+  fusion:
+    shiny_threshold: 0.55
+    uncertain_threshold: 0.35

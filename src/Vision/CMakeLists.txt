@@ -19,7 +19,6 @@ target_link_libraries(
     opencv_core
     opencv_imgproc
     opencv_imgcodecs
-    spdlog::spdlog
 )
 
 sh3ds_set_warnings(sh3ds_vision)

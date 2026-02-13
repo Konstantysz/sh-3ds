@@ -1,0 +1,159 @@
+#include "Orchestrator.h"
+
+#include "Core/Logging.h"
+
+#include <chrono>
+#include <thread>
+
+namespace SH3DS::Pipeline
+{
+    Orchestrator::Orchestrator(std::unique_ptr<Capture::FrameSource> frameSource,
+        std::unique_ptr<Capture::FramePreprocessor> preprocessor,
+        std::unique_ptr<FSM::GameStateFSM> fsm,
+        std::unique_ptr<Vision::ShinyDetector> detector,
+        std::unique_ptr<Strategy::HuntStrategy> strategy,
+        std::unique_ptr<Input::InputAdapter> input,
+        Core::OrchestratorConfig config)
+        : frameSource(std::move(frameSource))
+        , preprocessor(std::move(preprocessor))
+        , fsm(std::move(fsm))
+        , detector(std::move(detector))
+        , strategy(std::move(strategy))
+        , input(std::move(input))
+        , config(std::move(config))
+    {
+    }
+
+    void Orchestrator::Run()
+    {
+        running = true;
+        auto tickInterval =
+            std::chrono::microseconds(static_cast<int64_t>(1'000'000.0 / config.targetFps));
+
+        LOG_INFO("Orchestrator starting at {:.1f} FPS (dry_run={})", config.targetFps, config.dryRun);
+
+        while (running)
+        {
+            auto tickStart = std::chrono::steady_clock::now();
+
+            MainLoopTick();
+
+            auto tickEnd = std::chrono::steady_clock::now();
+            auto elapsed = tickEnd - tickStart;
+            if (elapsed < tickInterval)
+            {
+                std::this_thread::sleep_for(tickInterval - elapsed);
+            }
+        }
+
+        if (input && input->IsConnected())
+        {
+            input->ReleaseAll();
+        }
+
+        LOG_INFO("Orchestrator stopped. Final stats: {} encounters, {} shinies",
+            strategy->Stats().encounters, strategy->Stats().shiniesFound);
+    }
+
+    void Orchestrator::Stop()
+    {
+        running = false;
+    }
+
+    Core::HuntStatistics Orchestrator::Stats() const
+    {
+        return strategy->Stats();
+    }
+
+    void Orchestrator::MainLoopTick()
+    {
+        auto frame = frameSource->Grab();
+        if (!frame.has_value())
+        {
+            return;
+        }
+
+        auto rois = preprocessor->Process(frame->image);
+        if (!rois.has_value())
+        {
+            LOG_DEBUG("Screen not detected in frame #{}", frame->metadata.sequenceNumber);
+            return;
+        }
+
+        auto transition = fsm->Update(*rois);
+        if (transition.has_value())
+        {
+            LOG_INFO("FSM: {} -> {}", transition->from, transition->to);
+        }
+
+        std::optional<Core::ShinyResult> shinyResult;
+        auto spriteIt = rois->find("pokemon_sprite");
+        if (spriteIt != rois->end() && !spriteIt->second.empty())
+        {
+            shinyResult = detector->Detect(spriteIt->second);
+        }
+
+        auto strategyDecision = strategy->Tick(fsm->CurrentState(), fsm->TimeInCurrentState(), shinyResult);
+        ExecuteDecision(strategyDecision);
+        HandleWatchdog();
+    }
+
+    void Orchestrator::HandleWatchdog()
+    {
+        if (fsm->IsStuck())
+        {
+            LOG_WARN("Watchdog: FSM stuck in state '{}' for {}ms", fsm->CurrentState(),
+                fsm->TimeInCurrentState().count());
+
+            auto recovery = strategy->OnStuck();
+            ExecuteDecision(recovery);
+
+            if (recovery.decision.action == Core::HuntAction::Abort)
+            {
+                Stop();
+            }
+            else
+            {
+                fsm->ForceState("unknown");
+                detector->Reset();
+            }
+        }
+    }
+
+    void Orchestrator::ExecuteDecision(const Strategy::StrategyDecision &strategyDecision)
+    {
+        const auto &decision = strategyDecision.decision;
+        const auto &command = strategyDecision.command;
+
+        switch (decision.action)
+        {
+        case Core::HuntAction::SendInput:
+            if (!config.dryRun && input && input->IsConnected())
+            {
+                input->Send(command);
+                if (decision.delay.count() > 0)
+                {
+                    std::this_thread::sleep_for(decision.delay);
+                    input->ReleaseAll();
+                }
+            }
+            LOG_DEBUG("Input: {} (buttons=0x{:04X})", decision.reason, command.buttonsPressed);
+            break;
+
+        case Core::HuntAction::AlertShiny:
+            LOG_ERROR("*** SHINY FOUND! *** {}", decision.reason);
+            Stop();
+            break;
+
+        case Core::HuntAction::Abort:
+            LOG_ERROR("ABORT: {}", decision.reason);
+            Stop();
+            break;
+
+        case Core::HuntAction::CheckShiny:
+        case Core::HuntAction::Wait:
+        case Core::HuntAction::Reset:
+            break;
+        }
+    }
+} // namespace SH3DS::Pipeline

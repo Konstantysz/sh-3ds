@@ -1,0 +1,63 @@
+hunt:
+  id: "xy_starter_sr"
+  name: "Pokemon X/Y Starter Soft Reset"
+  game: "pokemon_xy"
+  method: "soft_reset"
+  target_pokemon: "froakie"
+  detection_profile: "xy_froakie"
+  shiny_check_state: "starter_reveal"
+  shiny_check_frames: 15
+  shiny_check_delay_ms: 1500
+  on_shiny_action: "stop"
+
+  alert:
+    console_beep: true
+    save_screenshot: true
+    log_level: "error"
+
+  recovery:
+    on_stuck:
+      action: "soft_reset"
+      max_retries: 5
+    on_detection_failure:
+      action: "skip"
+      max_consecutive: 10
+
+  actions:
+    title_screen:
+      - buttons: ["A"]
+        hold_ms: 150
+        wait_after_ms: 2000
+
+    intro_cutscene:
+      - buttons: ["A"]
+        hold_ms: 100
+        wait_after_ms: 300
+        repeat: true
+
+    starter_selection:
+      - buttons: ["D_RIGHT"]
+        hold_ms: 120
+        wait_after_ms: 200
+      - buttons: ["D_RIGHT"]
+        hold_ms: 120
+        wait_after_ms: 200
+      - buttons: ["A"]
+        hold_ms: 150
+        wait_after_ms: 500
+
+    starter_confirm:
+      - buttons: ["A"]
+        hold_ms: 150
+        wait_after_ms: 1000
+
+    starter_reveal:
+      - wait_ms: 3000
+
+    post_reveal:
+      - wait_ms: 500
+
+    soft_reset:
+      - buttons: ["L", "R", "START"]
+        hold_ms: 500
+        wait_after_ms: 3000

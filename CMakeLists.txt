@@ -25,14 +25,13 @@ add_subdirectory(src/Input)
 add_subdirectory(src/Capture)
 add_subdirectory(src/FSM)
 
-# TODO: re-enable once namespace migration is complete
-# add_subdirectory(src/Vision)
-# add_subdirectory(src/Strategy)
-# add_subdirectory(src/Orchestrator)
-#
-# add_executable(sh3ds src/Main.cpp)
-# target_link_libraries(sh3ds PRIVATE SH3DS::Orchestrator CLI11::CLI11)
-# sh3ds_set_warnings(sh3ds)
+add_subdirectory(src/Vision)
+add_subdirectory(src/Strategy)
+add_subdirectory(src/Pipeline)
+
+add_executable(sh3ds src/Main.cpp)
+target_link_libraries(sh3ds PRIVATE SH3DS::Pipeline CLI11::CLI11)
+sh3ds_set_warnings(sh3ds)
 
 option(SH3DS_BUILD_TESTS "Build tests" ON)
 

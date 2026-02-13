@@ -1,0 +1,113 @@
+game:
+  id: "pokemon_xy"
+  name: "Pokemon X / Pokemon Y"
+
+rois:
+  - name: "full_screen"
+    x: 0.0
+    y: 0.0
+    w: 1.0
+    h: 1.0
+  - name: "pokemon_sprite"
+    x: 0.30
+    y: 0.05
+    w: 0.40
+    h: 0.65
+  - name: "dialogue_box"
+    x: 0.02
+    y: 0.72
+    w: 0.96
+    h: 0.26
+  - name: "background_top"
+    x: 0.0
+    y: 0.0
+    w: 1.0
+    h: 0.15
+  - name: "sparkle_region"
+    x: 0.20
+    y: 0.0
+    w: 0.60
+    h: 0.80
+
+states:
+  initial: "unknown"
+  debounce_frames: 3
+  definitions:
+    - id: "title_screen"
+      description: "Main title screen with 'Press Start' text"
+      detection:
+        method: "template_match"
+        roi: "full_screen"
+        template_path: "assets/templates/pokemon_xy/title_screen.png"
+        threshold: 0.75
+      transitions_to: ["intro_cutscene", "unknown"]
+      max_duration_s: 30
+
+    - id: "intro_cutscene"
+      description: "Opening cutscene / NPC dialogue before starter selection"
+      detection:
+        method: "color_histogram"
+        roi: "background_top"
+        hsv_lower: [0, 0, 200]
+        hsv_upper: [180, 40, 255]
+        pixel_ratio_min: 0.5
+        threshold: 0.7
+      transitions_to: ["starter_selection"]
+      max_duration_s: 60
+
+    - id: "starter_selection"
+      description: "Screen showing 3 starter Pokemon to choose from"
+      detection:
+        method: "template_match"
+        roi: "full_screen"
+        template_path: "assets/templates/pokemon_xy/starter_selection_bg.png"
+        threshold: 0.70
+      transitions_to: ["starter_confirm"]
+      max_duration_s: 30
+
+    - id: "starter_confirm"
+      description: "Confirmation dialogue after choosing a starter"
+      detection:
+        method: "template_match"
+        roi: "dialogue_box"
+        template_path: "assets/templates/pokemon_xy/confirm_dialogue.png"
+        threshold: 0.70
+      transitions_to: ["starter_reveal"]
+      max_duration_s: 15
+
+    - id: "starter_reveal"
+      description: "Starter Pokemon is shown — SHINY CHECK STATE"
+      detection:
+        method: "color_histogram"
+        roi: "full_screen"
+        hsv_lower: [0, 0, 0]
+        hsv_upper: [180, 255, 255]
+        pixel_ratio_min: 0.0
+        threshold: 0.3
+      transitions_to: ["post_reveal"]
+      max_duration_s: 20
+      shiny_check: true
+
+    - id: "post_reveal"
+      description: "After starter reveal, before soft reset"
+      detection:
+        method: "color_histogram"
+        roi: "full_screen"
+        hsv_lower: [0, 0, 0]
+        hsv_upper: [180, 255, 255]
+        pixel_ratio_min: 0.0
+        threshold: 0.3
+      transitions_to: ["soft_reset", "title_screen"]
+      max_duration_s: 10
+
+    - id: "soft_reset"
+      description: "Transient state during soft reset (black screen)"
+      detection:
+        method: "color_histogram"
+        roi: "full_screen"
+        hsv_lower: [0, 0, 0]
+        hsv_upper: [180, 30, 30]
+        pixel_ratio_min: 0.85
+        threshold: 0.8
+      transitions_to: ["title_screen"]
+      max_duration_s: 15
