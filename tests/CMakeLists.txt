@@ -26,12 +26,13 @@ target_link_libraries(TestInputEncoding PRIVATE SH3DS::Input)
 sh3ds_add_test(TestFramePreprocessor unit/TestFramePreprocessor.cpp)
 target_link_libraries(TestFramePreprocessor PRIVATE SH3DS::Capture)
 
+sh3ds_add_test(TestFsmTransitions unit/TestFsmTransitions.cpp)
+target_link_libraries(TestFsmTransitions PRIVATE SH3DS::FSM)
+
+sh3ds_add_test(TestShinyDetector unit/TestShinyDetector.cpp)
+target_link_libraries(TestShinyDetector PRIVATE SH3DS::Vision)
+
 # TODO: enable remaining tests once their deps compile
-# sh3ds_add_test(TestFsmTransitions unit/TestFsmTransitions.cpp)
-# target_link_libraries(TestFsmTransitions PRIVATE SH3DS::FSM)
-#
-# sh3ds_add_test(TestShinyDetector unit/TestShinyDetector.cpp)
-# target_link_libraries(TestShinyDetector PRIVATE SH3DS::Vision)
 #
 # sh3ds_add_test(TestReplayPipeline integration/TestReplayPipeline.cpp)
 # target_link_libraries(TestReplayPipeline PRIVATE SH3DS::Orchestrator)
