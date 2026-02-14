@@ -24,14 +24,14 @@ namespace SH3DS::Vision
          * @param pokemonRoi The image region containing the Pokemon.
          * @return The shiny detection result.
          */
-        virtual Core::ShinyResult Detect(const cv::Mat &pokemonRoi) = 0;
+        virtual Core::ShinyResult Detect(const cv::Mat &pokemonRoi) const = 0;
 
         /**
          * @brief Detect shiny Pokemon in a sequence of images.
          * @param rois The sequence of image regions containing the Pokemon.
          * @return The shiny detection result.
          */
-        virtual Core::ShinyResult DetectSequence(std::span<const cv::Mat> rois) = 0;
+        virtual Core::ShinyResult DetectSequence(std::span<const cv::Mat> rois) const = 0;
 
         /**
          * @brief Get the profile ID.

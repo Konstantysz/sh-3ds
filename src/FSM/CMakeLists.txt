@@ -10,6 +10,7 @@ target_link_libraries(
   sh3ds_fsm
   PUBLIC
     SH3DS::Core
+    SH3DS::Vision
     opencv_core
     opencv_imgproc
     opencv_imgcodecs

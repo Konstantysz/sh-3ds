@@ -26,8 +26,8 @@ namespace SH3DS::Input
     }
 
     bool MockInputAdapter::PressAndRelease(uint32_t buttons,
-        std::chrono::milliseconds holdDuration,
-        std::chrono::milliseconds releaseDelay)
+        [[maybe_unused]] std::chrono::milliseconds holdDuration,
+        [[maybe_unused]] std::chrono::milliseconds releaseDelay)
     {
         if (!connected)
         {

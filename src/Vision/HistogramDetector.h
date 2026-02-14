@@ -25,12 +25,12 @@ namespace SH3DS::Vision
         /**
          * @brief Detects shiny status from a single ROI frame.
          */
-        Core::ShinyResult Detect(const cv::Mat &pokemonRoi) override;
+        Core::ShinyResult Detect(const cv::Mat &pokemonRoi) const override;
 
         /**
          * @brief Detects shiny status from a sequence of ROI frames (uses middle frame).
          */
-        Core::ShinyResult DetectSequence(std::span<const cv::Mat> rois) override;
+        Core::ShinyResult DetectSequence(std::span<const cv::Mat> rois) const override;
 
         /**
          * @brief Returns the profile identifier.
@@ -38,7 +38,7 @@ namespace SH3DS::Vision
         std::string ProfileId() const override;
 
         /**
-         * @brief Resets internal state (no-op for this detector).
+         * @brief Resets internal state.
          */
         void Reset() override;
 
@@ -55,13 +55,13 @@ namespace SH3DS::Vision
         /**
          * @brief Lazily loads reference histograms from configured file paths.
          */
-        void LoadReferences();
+        void LoadReferences() const;
 
-        Core::DetectionMethodConfig config; ///< Detection method configuration
-        std::string id;                     ///< Profile identifier
-        cv::Mat normalHist;                 ///< Reference histogram for normal appearance
-        cv::Mat shinyHist;                  ///< Reference histogram for shiny appearance
-        bool referencesLoaded = false;      ///< Whether references have been loaded
+        Core::DetectionMethodConfig config;    ///< Detection method configuration
+        std::string id;                        ///< Profile identifier
+        mutable cv::Mat normalHist;            ///< Reference histogram for normal appearance
+        mutable cv::Mat shinyHist;             ///< Reference histogram for shiny appearance
+        mutable bool referencesLoaded = false; ///< Whether references have been loaded
     };
 
 } // namespace SH3DS::Vision

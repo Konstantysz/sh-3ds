@@ -26,28 +26,55 @@ namespace SH3DS::Pipeline
 
     void Orchestrator::Run()
     {
+        if (config.targetFps <= 0.0)
+        {
+            LOG_ERROR("Orchestrator: Invalid target FPS ({:.1f}). Clamping to 30.0", config.targetFps);
+            config.targetFps = 30.0;
+        }
+
         running = true;
         auto tickInterval = std::chrono::microseconds(static_cast<int64_t>(1'000'000.0 / config.targetFps));
 
         LOG_INFO("Orchestrator starting at {:.1f} FPS (dry_run={})", config.targetFps, config.dryRun);
 
-        while (running)
+        try
         {
-            auto tickStart = std::chrono::steady_clock::now();
-
-            MainLoopTick();
-
-            auto tickEnd = std::chrono::steady_clock::now();
-            auto elapsed = tickEnd - tickStart;
-            if (elapsed < tickInterval)
+            while (running)
             {
-                std::this_thread::sleep_for(tickInterval - elapsed);
+                auto tickStart = std::chrono::steady_clock::now();
+
+                MainLoopTick();
+
+                auto tickEnd = std::chrono::steady_clock::now();
+                auto elapsed = tickEnd - tickStart;
+                if (elapsed < tickInterval)
+                {
+                    std::this_thread::sleep_for(tickInterval - elapsed);
+                }
             }
         }
+        catch (const std::exception &e)
+        {
+            LOG_CRITICAL("Orchestrator encountered a fatal exception: {}", e.what());
+            running = false;
+        }
+        catch (...)
+        {
+            LOG_CRITICAL("Orchestrator encountered an unknown fatal error!");
+            running = false;
+        }
 
+        // Cleanup: Release all buttons
         if (input && input->IsConnected())
         {
-            input->ReleaseAll();
+            try
+            {
+                input->ReleaseAll();
+            }
+            catch (...)
+            {
+                LOG_WARN("Failed to release buttons during shutdown");
+            }
         }
 
         LOG_INFO("Orchestrator stopped. Final stats: {} encounters, {} shinies",

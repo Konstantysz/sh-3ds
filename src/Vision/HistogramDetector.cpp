@@ -16,12 +16,15 @@ namespace SH3DS::Vision
     {
     }
 
-    Core::ShinyResult HistogramDetector::Detect(const cv::Mat &pokemonRoi)
+    Core::ShinyResult HistogramDetector::Detect(const cv::Mat &pokemonRoi) const
     {
         if (pokemonRoi.empty())
         {
             return { .verdict = Core::ShinyVerdict::Uncertain, .confidence = 0.0, .method = "histogram_compare" };
         }
+
+        // Load references lazily
+        LoadReferences();
 
         cv::Mat hsv;
         cv::cvtColor(pokemonRoi, hsv, cv::COLOR_BGR2HSV);
@@ -35,9 +38,6 @@ namespace SH3DS::Vision
         const float *ranges[] = { hRange, sRange };
         cv::calcHist(&hsv, 1, channels, cv::Mat(), roiHist, 2, histSize, ranges);
         cv::normalize(roiHist, roiHist, 0, 1, cv::NORM_MINMAX);
-
-        // Load references lazily
-        LoadReferences();
 
         if (normalHist.empty() || shinyHist.empty())
         {
@@ -103,7 +103,7 @@ namespace SH3DS::Vision
         };
     }
 
-    Core::ShinyResult HistogramDetector::DetectSequence(std::span<const cv::Mat> rois)
+    Core::ShinyResult HistogramDetector::DetectSequence(std::span<const cv::Mat> rois) const
     {
         if (rois.empty())
         {
@@ -149,7 +149,7 @@ namespace SH3DS::Vision
         // No internal state to reset
     }
 
-    void HistogramDetector::LoadReferences()
+    void HistogramDetector::LoadReferences() const
     {
         if (referencesLoaded)
         {

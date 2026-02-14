@@ -16,7 +16,7 @@
 
 static SH3DS::Pipeline::Orchestrator *globalOrchestrator = nullptr;
 
-void SignalHandler(int signal)
+void SignalHandler([[maybe_unused]] int signal)
 {
     if (globalOrchestrator)
     {

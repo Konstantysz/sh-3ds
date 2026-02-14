@@ -3,6 +3,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include <algorithm>
+#include <cmath>
 
 namespace SH3DS::Capture
 {
@@ -28,10 +29,10 @@ namespace SH3DS::Capture
         Core::ROISet result;
         for (const auto &roiDef : roiDefs)
         {
-            int x = static_cast<int>(roiDef.x * calibration.targetWidth);
-            int y = static_cast<int>(roiDef.y * calibration.targetHeight);
-            int w = static_cast<int>(roiDef.w * calibration.targetWidth);
-            int h = static_cast<int>(roiDef.h * calibration.targetHeight);
+            int x = static_cast<int>(std::round(roiDef.x * calibration.targetWidth));
+            int y = static_cast<int>(std::round(roiDef.y * calibration.targetHeight));
+            int w = static_cast<int>(std::round(roiDef.w * calibration.targetWidth));
+            int h = static_cast<int>(std::round(roiDef.h * calibration.targetHeight));
 
             x = std::max(0, std::min(x, calibration.targetWidth - 1));
             y = std::max(0, std::min(y, calibration.targetHeight - 1));

@@ -115,20 +115,19 @@ TEST(DominantColorDetector, ProfileIdMatches)
     EXPECT_EQ(detector->ProfileId(), "xy_froakie");
 }
 
-TEST(DominantColorDetector, DetectSequenceUsesMiddleFrame)
+TEST(DominantColorDetector, DetectSequenceUsesMajorityVote)
 {
     auto config = CreateFroakieConfig();
     auto detector = SH3DS::Vision::DominantColorDetector::CreateDominantColorDetector(config, "test_froakie");
 
-    // Sequence of 3 normal images
+    // Sequence: 2 shiny, 1 normal -> should be Shiny
     std::vector<cv::Mat> frames;
-    for (int i = 0; i < 3; ++i)
-    {
-        frames.push_back(CreateColoredImage(115, 180, 130));
-    }
+    frames.push_back(CreateColoredImage(115, 60, 220));  // Shiny
+    frames.push_back(CreateColoredImage(115, 60, 220));  // Shiny
+    frames.push_back(CreateColoredImage(115, 180, 130)); // Normal
 
     auto result = detector->DetectSequence(frames);
-    EXPECT_EQ(result.verdict, SH3DS::Core::ShinyVerdict::NotShiny);
+    EXPECT_EQ(result.verdict, SH3DS::Core::ShinyVerdict::Shiny);
 }
 
 TEST(DominantColorDetector, NormalAndShinyAreDistinguishable)

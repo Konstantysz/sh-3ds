@@ -1,5 +1,7 @@
 #include "FileFrameSource.h"
 
+#include "Core/Logging.h"
+
 #include <opencv2/imgcodecs.hpp>
 
 namespace SH3DS::Capture
@@ -14,6 +16,7 @@ namespace SH3DS::Capture
     {
         if (!std::filesystem::is_directory(directory))
         {
+            LOG_ERROR("FileFrameSource: Directory does not exist: {}", directory.string());
             return false;
         }
 
@@ -57,6 +60,7 @@ namespace SH3DS::Capture
         cv::Mat image = cv::imread(framePaths[currentIndex].string(), cv::IMREAD_COLOR);
         if (image.empty())
         {
+            LOG_WARN("FileFrameSource: Failed to read image: {}", framePaths[currentIndex].string());
             ++currentIndex;
             return std::nullopt;
         }

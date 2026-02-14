@@ -1,10 +1,38 @@
 #include "DominantColorDetector.h"
 
+#include "Core/Logging.h"
+
 #include <opencv2/imgproc.hpp>
 
 #include <algorithm>
 #include <map>
 #include <string>
+
+namespace
+{
+    /**
+     * @brief Swaps lower/upper bounds if inverted and warns about Hue overflow.
+     * @param lower Lower bound HSV values.
+     * @param upper Upper bound HSV values.
+     * @param name Name of the detection method.
+     */
+    void ValidateHsvRange(cv::Scalar &lower, cv::Scalar &upper, const std::string &name)
+    {
+        for (int i = 0; i < 3; ++i)
+        {
+            if (lower[i] > upper[i])
+            {
+                std::swap(lower[i], upper[i]);
+            }
+        }
+        if (upper[0] > 179)
+        {
+            LOG_WARN("DetectionProfile: Hue upper bound ({:.0f}) > 179 for method {}. OpenCV Hue range is 0-179.",
+                static_cast<double>(upper[0]),
+                name);
+        }
+    }
+} // namespace
 
 namespace SH3DS::Vision
 {
@@ -12,9 +40,11 @@ namespace SH3DS::Vision
         : config(std::move(config)),
           id(std::move(profileId))
     {
+        ValidateHsvRange(this->config.normalHsvLower, this->config.normalHsvUpper, "normal");
+        ValidateHsvRange(this->config.shinyHsvLower, this->config.shinyHsvUpper, "shiny");
     }
 
-    Core::ShinyResult DominantColorDetector::Detect(const cv::Mat &pokemonRoi)
+    Core::ShinyResult DominantColorDetector::Detect(const cv::Mat &pokemonRoi) const
     {
         if (pokemonRoi.empty())
         {
@@ -62,7 +92,7 @@ namespace SH3DS::Vision
         };
     }
 
-    Core::ShinyResult DominantColorDetector::DetectSequence(std::span<const cv::Mat> rois)
+    Core::ShinyResult DominantColorDetector::DetectSequence(std::span<const cv::Mat> rois) const
     {
         if (rois.empty())
         {

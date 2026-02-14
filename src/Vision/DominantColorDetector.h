@@ -23,12 +23,12 @@ namespace SH3DS::Vision
         /**
          * @brief Detects shiny status from a single ROI frame.
          */
-        Core::ShinyResult Detect(const cv::Mat &pokemonRoi) override;
+        Core::ShinyResult Detect(const cv::Mat &pokemonRoi) const override;
 
         /**
          * @brief Detects shiny status from a sequence of ROI frames (uses middle frame).
          */
-        Core::ShinyResult DetectSequence(std::span<const cv::Mat> rois) override;
+        Core::ShinyResult DetectSequence(std::span<const cv::Mat> rois) const override;
 
         /**
          * @brief Returns the profile identifier.
