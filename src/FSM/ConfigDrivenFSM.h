@@ -2,6 +2,7 @@
 
 #include "Core/Config.h"
 #include "FSM/GameStateFSM.h"
+#include "Vision/TemplateMatcher.h"
 
 #include <opencv2/core.hpp>
 
@@ -110,6 +111,6 @@ namespace SH3DS::FSM
         Core::GameState pendingState;                         ///< The pending state.
         int pendingFrameCount = 0;                            ///< The number of frames in the pending state.
         std::vector<Core::StateTransition> history;           ///< The history of state transitions.
-        mutable std::map<std::string, cv::Mat> templateCache; ///< The cache for template images.
+        mutable Vision::TemplateMatcher templateMatcher;      ///< Template matcher for state detection.
     };
 } // namespace SH3DS::FSM

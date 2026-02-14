@@ -1,6 +1,7 @@
 #include "ConfigDrivenFSM.h"
 
 #include "Core/Logging.h"
+#include "Vision/TemplateMatcher.h"
 
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
@@ -172,40 +173,7 @@ namespace SH3DS::FSM
             return 0.0;
         }
 
-        // Lazy-load template
-        auto it = templateCache.find(rule.templatePath);
-        if (it == templateCache.end())
-        {
-            cv::Mat tmpl = cv::imread(rule.templatePath, cv::IMREAD_COLOR);
-            if (tmpl.empty())
-            {
-                LOG_WARN("Failed to load template: {}", rule.templatePath);
-                return 0.0;
-            }
-            templateCache[rule.templatePath] = tmpl;
-            it = templateCache.find(rule.templatePath);
-        }
-
-        const cv::Mat &tmpl = it->second;
-
-        // Resize template to match ROI if sizes differ
-        cv::Mat resizedTmpl;
-        if (tmpl.size() != roi.size())
-        {
-            cv::resize(tmpl, resizedTmpl, roi.size());
-        }
-        else
-        {
-            resizedTmpl = tmpl;
-        }
-
-        // Use normalized cross-correlation
-        cv::Mat result;
-        cv::matchTemplate(roi, resizedTmpl, result, cv::TM_CCORR_NORMED);
-
-        double minVal, maxVal;
-        cv::minMaxLoc(result, &minVal, &maxVal);
-        return maxVal;
+        return templateMatcher.Match(roi, rule.templatePath);
     }
 
     double ConfigDrivenFSM::EvaluateColorHistogram(const cv::Mat &roi, const Core::StateDetectionRule &rule) const

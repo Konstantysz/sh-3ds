@@ -5,6 +5,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include <algorithm>
+#include <map>
 #include <string>
 
 namespace SH3DS::Vision
@@ -108,7 +109,34 @@ namespace SH3DS::Vision
         {
             return { .verdict = Core::ShinyVerdict::Uncertain, .confidence = 0.0, .method = "histogram_compare" };
         }
-        return Detect(rois[rois.size() / 2]);
+
+        std::map<Core::ShinyVerdict, int> votes;
+        std::map<Core::ShinyVerdict, double> totalConfidence;
+
+        for (const auto &roi : rois)
+        {
+            auto res = Detect(roi);
+            votes[res.verdict]++;
+            totalConfidence[res.verdict] += res.confidence;
+        }
+
+        Core::ShinyVerdict winner = Core::ShinyVerdict::Uncertain;
+        int maxVotes = -1;
+
+        for (const auto &[verdict, count] : votes)
+        {
+            if (count > maxVotes)
+            {
+                maxVotes = count;
+                winner = verdict;
+            }
+        }
+
+        return { .verdict = winner,
+            .confidence = totalConfidence[winner] / static_cast<double>(maxVotes),
+            .method = "histogram_compare",
+            .details =
+                "sequence_majority_vote: count=" + std::to_string(maxVotes) + "/" + std::to_string(rois.size()) };
     }
 
     std::string HistogramDetector::ProfileId() const
