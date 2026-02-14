@@ -34,16 +34,13 @@ namespace SH3DS::Input
             return false;
         }
 
-        InputCommand pressed;
-        pressed.buttonsPressed = buttons;
-        Send(pressed);
+        // Mock: just log both steps without sleeping
+        InputCommand pressCmd;
+        pressCmd.buttonsPressed = buttons;
+        commandLog.push_back(pressCmd);
 
-        std::this_thread::sleep_for(holdDuration);
-
-        InputCommand released;
-        Send(released);
-
-        std::this_thread::sleep_for(releaseDelay);
+        InputCommand releaseCmd; // Default is all released
+        commandLog.push_back(releaseCmd);
 
         return true;
     }
