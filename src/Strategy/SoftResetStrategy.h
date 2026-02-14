@@ -24,7 +24,8 @@ namespace SH3DS::Strategy
         /**
          * @brief Evaluate the current game state and decide what to do next.
          */
-        StrategyDecision Tick(const Core::GameState &currentState, std::chrono::milliseconds timeInState,
+        StrategyDecision Tick(const Core::GameState &currentState,
+            std::chrono::milliseconds timeInState,
             const std::optional<Core::ShinyResult> &shinyResult) override;
 
         /**

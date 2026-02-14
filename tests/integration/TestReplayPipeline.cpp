@@ -26,8 +26,8 @@ protected:
         calibration.targetWidth = 400;
         calibration.targetHeight = 240;
 
-        rois.push_back({.name = "full_screen", .x = 0.0, .y = 0.0, .w = 1.0, .h = 1.0});
-        rois.push_back({.name = "pokemon_sprite", .x = 0.3, .y = 0.05, .w = 0.4, .h = 0.65});
+        rois.push_back({ .name = "full_screen", .x = 0.0, .y = 0.0, .w = 1.0, .h = 1.0 });
+        rois.push_back({ .name = "pokemon_sprite", .x = 0.3, .y = 0.05, .w = 0.4, .h = 0.65 });
 
         preprocessor = std::make_unique<SH3DS::Capture::FramePreprocessor>(calibration, rois);
 

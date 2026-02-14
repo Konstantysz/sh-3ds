@@ -70,13 +70,13 @@ namespace SH3DS::Pipeline
          */
         void ExecuteDecision(const Strategy::StrategyDecision &strategyDecision);
 
-        std::unique_ptr<Capture::FrameSource> frameSource;         ///< Frame acquisition source
-        std::unique_ptr<Capture::FramePreprocessor> preprocessor;  ///< Perspective warp and ROI extraction
-        std::unique_ptr<FSM::GameStateFSM> fsm;                    ///< Game state tracking FSM
-        std::unique_ptr<Vision::ShinyDetector> detector;           ///< Shiny detection engine
-        std::unique_ptr<Strategy::HuntStrategy> strategy;          ///< Hunt strategy
-        std::unique_ptr<Input::InputAdapter> input;                ///< Input adapter for 3DS injection
-        Core::OrchestratorConfig config;                           ///< Runtime configuration
-        bool running = false;                                      ///< Whether the main loop is running
+        std::unique_ptr<Capture::FrameSource> frameSource;        ///< Frame acquisition source
+        std::unique_ptr<Capture::FramePreprocessor> preprocessor; ///< Perspective warp and ROI extraction
+        std::unique_ptr<FSM::GameStateFSM> fsm;                   ///< Game state tracking FSM
+        std::unique_ptr<Vision::ShinyDetector> detector;          ///< Shiny detection engine
+        std::unique_ptr<Strategy::HuntStrategy> strategy;         ///< Hunt strategy
+        std::unique_ptr<Input::InputAdapter> input;               ///< Input adapter for 3DS injection
+        Core::OrchestratorConfig config;                          ///< Runtime configuration
+        bool running = false;                                     ///< Whether the main loop is running
     };
 } // namespace SH3DS::Pipeline

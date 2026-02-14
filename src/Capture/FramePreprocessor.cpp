@@ -7,7 +7,7 @@
 namespace SH3DS::Capture
 {
     FramePreprocessor::FramePreprocessor(Core::ScreenCalibrationConfig calibration,
-                                         std::vector<Core::RoiDefinition> roiDefs)
+        std::vector<Core::RoiDefinition> roiDefs)
         : calibration(std::move(calibration)),
           roiDefs(std::move(roiDefs))
     {

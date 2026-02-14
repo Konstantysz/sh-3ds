@@ -14,21 +14,20 @@ namespace SH3DS::Pipeline
         std::unique_ptr<Strategy::HuntStrategy> strategy,
         std::unique_ptr<Input::InputAdapter> input,
         Core::OrchestratorConfig config)
-        : frameSource(std::move(frameSource))
-        , preprocessor(std::move(preprocessor))
-        , fsm(std::move(fsm))
-        , detector(std::move(detector))
-        , strategy(std::move(strategy))
-        , input(std::move(input))
-        , config(std::move(config))
+        : frameSource(std::move(frameSource)),
+          preprocessor(std::move(preprocessor)),
+          fsm(std::move(fsm)),
+          detector(std::move(detector)),
+          strategy(std::move(strategy)),
+          input(std::move(input)),
+          config(std::move(config))
     {
     }
 
     void Orchestrator::Run()
     {
         running = true;
-        auto tickInterval =
-            std::chrono::microseconds(static_cast<int64_t>(1'000'000.0 / config.targetFps));
+        auto tickInterval = std::chrono::microseconds(static_cast<int64_t>(1'000'000.0 / config.targetFps));
 
         LOG_INFO("Orchestrator starting at {:.1f} FPS (dry_run={})", config.targetFps, config.dryRun);
 
@@ -52,7 +51,8 @@ namespace SH3DS::Pipeline
         }
 
         LOG_INFO("Orchestrator stopped. Final stats: {} encounters, {} shinies",
-            strategy->Stats().encounters, strategy->Stats().shiniesFound);
+            strategy->Stats().encounters,
+            strategy->Stats().shiniesFound);
     }
 
     void Orchestrator::Stop()
@@ -102,8 +102,8 @@ namespace SH3DS::Pipeline
     {
         if (fsm->IsStuck())
         {
-            LOG_WARN("Watchdog: FSM stuck in state '{}' for {}ms", fsm->CurrentState(),
-                fsm->TimeInCurrentState().count());
+            LOG_WARN(
+                "Watchdog: FSM stuck in state '{}' for {}ms", fsm->CurrentState(), fsm->TimeInCurrentState().count());
 
             auto recovery = strategy->OnStuck();
             ExecuteDecision(recovery);

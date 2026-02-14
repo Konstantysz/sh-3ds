@@ -1,8 +1,8 @@
 #include "Core/Config.h"
 #include "Core/Types.h"
-#include "Vision/HistogramUtils.h"
 #include "Vision/DominantColorDetector.h"
 #include "Vision/HistogramDetector.h"
+#include "Vision/HistogramUtils.h"
 
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
@@ -40,8 +40,7 @@ namespace
         return config;
     }
 
-    SH3DS::Core::DetectionMethodConfig CreateHistogramFroakieConfig(
-        const std::string &normalRefPath,
+    SH3DS::Core::DetectionMethodConfig CreateHistogramFroakieConfig(const std::string &normalRefPath,
         const std::string &shinyRefPath)
     {
         SH3DS::Core::DetectionMethodConfig config;

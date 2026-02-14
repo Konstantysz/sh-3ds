@@ -17,8 +17,8 @@ namespace SH3DS::Strategy
      */
     struct StrategyDecision
     {
-        Core::HuntDecision decision;   ///< What action to take and why
-        Input::InputCommand command;   ///< Command to send (meaningful only when action == SendInput)
+        Core::HuntDecision decision; ///< What action to take and why
+        Input::InputCommand command; ///< Command to send (meaningful only when action == SendInput)
     };
 
     /**

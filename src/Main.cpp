@@ -27,7 +27,7 @@ void SignalHandler(int signal)
 
 int main(int argc, char *argv[])
 {
-    CLI::App app{"SH-3DS: Networked Shiny Hunting Bot"};
+    CLI::App app{ "SH-3DS: Networked Shiny Hunting Bot" };
     LOG_INFO("Starting main...");
 
     std::string hardwareConfigPath = "config/hardware.yaml";

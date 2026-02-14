@@ -5,8 +5,7 @@
 
 namespace SH3DS::Strategy
 {
-    SoftResetStrategy::SoftResetStrategy(Core::HuntConfig config)
-        : config(std::move(config))
+    SoftResetStrategy::SoftResetStrategy(Core::HuntConfig config) : config(std::move(config))
     {
         Reset();
     }
@@ -30,7 +29,7 @@ namespace SH3DS::Strategy
             // Wait for the delay before checking
             if (timeInState < std::chrono::milliseconds(config.shinyCheckDelayMs))
             {
-                return {{.action = Core::HuntAction::Wait, .reason = "waiting for shiny check delay"}, {}};
+                return { { .action = Core::HuntAction::Wait, .reason = "waiting for shiny check delay" }, {} };
             }
 
             if (shinyResult.has_value())
@@ -38,11 +37,9 @@ namespace SH3DS::Strategy
                 if (shinyResult->verdict == Core::ShinyVerdict::Shiny)
                 {
                     ++stats.shiniesFound;
-                    LOG_ERROR("SHINY FOUND! confidence={:.3f} method={}", shinyResult->confidence,
-                        shinyResult->method);
+                    LOG_ERROR("SHINY FOUND! confidence={:.3f} method={}", shinyResult->confidence, shinyResult->method);
                     return {
-                        {.action = Core::HuntAction::AlertShiny,
-                            .reason = "Shiny detected! " + shinyResult->details},
+                        { .action = Core::HuntAction::AlertShiny, .reason = "Shiny detected! " + shinyResult->details },
                         {},
                     };
                 }
@@ -58,8 +55,7 @@ namespace SH3DS::Strategy
                     }
                     stats.lastEncounter = now;
 
-                    LOG_INFO("Encounter #{}: not shiny (confidence={:.3f})", stats.encounters,
-                        shinyResult->confidence);
+                    LOG_INFO("Encounter #{}: not shiny (confidence={:.3f})", stats.encounters, shinyResult->confidence);
 
                     // Continue to post-reveal / soft reset
                     waitingForShinyCheck = false;
@@ -67,13 +63,13 @@ namespace SH3DS::Strategy
                 // Uncertain — keep checking
                 else
                 {
-                    return {
-                        {.action = Core::HuntAction::CheckShiny, .reason = "uncertain verdict, re-checking"}, {}};
+                    return { { .action = Core::HuntAction::CheckShiny, .reason = "uncertain verdict, re-checking" },
+                        {} };
                 }
             }
             else
             {
-                return {{.action = Core::HuntAction::CheckShiny, .reason = "requesting shiny check"}, {}};
+                return { { .action = Core::HuntAction::CheckShiny, .reason = "requesting shiny check" }, {} };
             }
         }
 
@@ -81,7 +77,7 @@ namespace SH3DS::Strategy
         auto it = config.actions.find(currentState);
         if (it == config.actions.end() || it->second.empty())
         {
-            return {{.action = Core::HuntAction::Wait, .reason = "no actions for state: " + currentState}, {}};
+            return { { .action = Core::HuntAction::Wait, .reason = "no actions for state: " + currentState }, {} };
         }
 
         const auto &stateActions = it->second;
@@ -96,8 +92,8 @@ namespace SH3DS::Strategy
                 if (timeInState < std::chrono::milliseconds(action.waitMs))
                 {
                     return {
-                        {.action = Core::HuntAction::Wait,
-                            .reason = "waiting " + std::to_string(action.waitMs) + "ms"},
+                        { .action = Core::HuntAction::Wait,
+                            .reason = "waiting " + std::to_string(action.waitMs) + "ms" },
                         {},
                     };
                 }
@@ -113,8 +109,7 @@ namespace SH3DS::Strategy
             if (!action.buttons.empty())
             {
                 auto now = std::chrono::steady_clock::now();
-                auto timeSinceLastAction =
-                    std::chrono::duration_cast<std::chrono::milliseconds>(now - lastActionTime);
+                auto timeSinceLastAction = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastActionTime);
 
                 if (timeSinceLastAction >= std::chrono::milliseconds(action.waitAfterMs))
                 {
@@ -128,16 +123,16 @@ namespace SH3DS::Strategy
                     }
 
                     return {
-                        {.action = Core::HuntAction::SendInput,
+                        { .action = Core::HuntAction::SendInput,
                             .reason = "pressing buttons for state: " + currentState,
-                            .delay = std::chrono::milliseconds(action.holdMs)},
+                            .delay = std::chrono::milliseconds(action.holdMs) },
                         cmd,
                     };
                 }
             }
         }
 
-        return {{.action = Core::HuntAction::Wait, .reason = "waiting for next action window"}, {}};
+        return { { .action = Core::HuntAction::Wait, .reason = "waiting for next action window" }, {} };
     }
 
     StrategyDecision SoftResetStrategy::OnStuck()
@@ -145,21 +140,20 @@ namespace SH3DS::Strategy
         ++stats.watchdogRecoveries;
         ++consecutiveStuckCount;
 
-        LOG_WARN("Strategy: stuck recovery #{} (consecutive: {})", stats.watchdogRecoveries,
-            consecutiveStuckCount);
+        LOG_WARN("Strategy: stuck recovery #{} (consecutive: {})", stats.watchdogRecoveries, consecutiveStuckCount);
 
         if (consecutiveStuckCount > config.onStuck.maxRetries)
         {
             LOG_ERROR("Too many consecutive stuck recoveries. Aborting.");
-            return {{.action = Core::HuntAction::Abort, .reason = "exceeded max stuck recoveries"}, {}};
+            return { { .action = Core::HuntAction::Abort, .reason = "exceeded max stuck recoveries" }, {} };
         }
 
         // Force a soft reset
-        Input::InputCommand cmd = BuildInputCommand({"L", "R", "START"});
+        Input::InputCommand cmd = BuildInputCommand({ "L", "R", "START" });
         return {
-            {.action = Core::HuntAction::SendInput,
+            { .action = Core::HuntAction::SendInput,
                 .reason = "stuck recovery: forcing soft reset",
-                .delay = std::chrono::milliseconds(500)},
+                .delay = std::chrono::milliseconds(500) },
             cmd,
         };
     }
@@ -197,18 +191,30 @@ namespace SH3DS::Strategy
 
     uint32_t SoftResetStrategy::ButtonNameToBit(const std::string &name) const
     {
-        if (name == "A") return static_cast<uint32_t>(Input::Button::A);
-        if (name == "B") return static_cast<uint32_t>(Input::Button::B);
-        if (name == "SELECT") return static_cast<uint32_t>(Input::Button::Select);
-        if (name == "START") return static_cast<uint32_t>(Input::Button::Start);
-        if (name == "D_RIGHT") return static_cast<uint32_t>(Input::Button::DRight);
-        if (name == "D_LEFT") return static_cast<uint32_t>(Input::Button::DLeft);
-        if (name == "D_UP") return static_cast<uint32_t>(Input::Button::DUp);
-        if (name == "D_DOWN") return static_cast<uint32_t>(Input::Button::DDown);
-        if (name == "R") return static_cast<uint32_t>(Input::Button::R);
-        if (name == "L") return static_cast<uint32_t>(Input::Button::L);
-        if (name == "X") return static_cast<uint32_t>(Input::Button::X);
-        if (name == "Y") return static_cast<uint32_t>(Input::Button::Y);
+        if (name == "A")
+            return static_cast<uint32_t>(Input::Button::A);
+        if (name == "B")
+            return static_cast<uint32_t>(Input::Button::B);
+        if (name == "SELECT")
+            return static_cast<uint32_t>(Input::Button::Select);
+        if (name == "START")
+            return static_cast<uint32_t>(Input::Button::Start);
+        if (name == "D_RIGHT")
+            return static_cast<uint32_t>(Input::Button::DRight);
+        if (name == "D_LEFT")
+            return static_cast<uint32_t>(Input::Button::DLeft);
+        if (name == "D_UP")
+            return static_cast<uint32_t>(Input::Button::DUp);
+        if (name == "D_DOWN")
+            return static_cast<uint32_t>(Input::Button::DDown);
+        if (name == "R")
+            return static_cast<uint32_t>(Input::Button::R);
+        if (name == "L")
+            return static_cast<uint32_t>(Input::Button::L);
+        if (name == "X")
+            return static_cast<uint32_t>(Input::Button::X);
+        if (name == "Y")
+            return static_cast<uint32_t>(Input::Button::Y);
 
         LOG_WARN("Unknown button name: {}", name);
         return 0;

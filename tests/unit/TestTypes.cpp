@@ -99,8 +99,8 @@ TEST(Button, BitValues)
 
 TEST(Button, SoftResetCombo)
 {
-    uint32_t softReset =
-        static_cast<uint32_t>(SH3DS::Input::Button::L) | static_cast<uint32_t>(SH3DS::Input::Button::R) | static_cast<uint32_t>(SH3DS::Input::Button::Start);
+    uint32_t softReset = static_cast<uint32_t>(SH3DS::Input::Button::L) | static_cast<uint32_t>(SH3DS::Input::Button::R)
+                         | static_cast<uint32_t>(SH3DS::Input::Button::Start);
     EXPECT_EQ(softReset, 0x0308u);
 }
 
@@ -119,7 +119,8 @@ TEST(InputCommand, DefaultHasNoButtonsPressed)
 TEST(InputCommand, SetMultipleButtons)
 {
     SH3DS::Input::InputCommand cmd;
-    cmd.buttonsPressed = static_cast<uint32_t>(SH3DS::Input::Button::A) | static_cast<uint32_t>(SH3DS::Input::Button::B);
+    cmd.buttonsPressed =
+        static_cast<uint32_t>(SH3DS::Input::Button::A) | static_cast<uint32_t>(SH3DS::Input::Button::B);
     EXPECT_EQ(cmd.buttonsPressed, 0x0003u);
 }
 
