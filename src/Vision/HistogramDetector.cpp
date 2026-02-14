@@ -63,6 +63,13 @@ namespace SH3DS::Vision
         double normalCorr = cv::compareHist(roiHist, normalHist, method);
         double shinyCorr = cv::compareHist(roiHist, shinyHist, method);
 
+        // Distance metrics (lower is better) need to be inverted for the differential calculation
+        if (method == cv::HISTCMP_CHISQR || method == cv::HISTCMP_BHATTACHARYYA)
+        {
+            normalCorr = -normalCorr;
+            shinyCorr = -shinyCorr;
+        }
+
         std::string details = "normal_corr=" + std::to_string(normalCorr) + " shiny_corr=" + std::to_string(shinyCorr);
 
         double differential = shinyCorr - normalCorr;
