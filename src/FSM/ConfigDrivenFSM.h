@@ -97,6 +97,13 @@ namespace SH3DS::FSM
          */
         double EvaluateColorHistogram(const cv::Mat &roi, const Core::StateDetectionRule &rule) const;
 
+        /**
+         * @brief Records a transition in history and prunes if necessary.
+         * @param transition The transition to record.
+         */
+        void RecordTransition(const Core::StateTransition &transition);
+
+
         Core::GameProfile profile;                            ///< The game profile.
         Core::GameState currentState;                         ///< The current state.
         std::chrono::steady_clock::time_point stateEnteredAt; ///< The time when the current state was entered.

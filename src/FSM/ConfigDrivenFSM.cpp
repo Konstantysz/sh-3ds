@@ -35,28 +35,37 @@ namespace SH3DS::FSM
                 pendingFrameCount = 1;
             }
 
-            if (pendingFrameCount >= profile.debounceFrames)
+            if (pendingFrameCount >= profile.debounceFrames && pendingState != currentState)
             {
-                auto now = std::chrono::steady_clock::now();
-                Core::StateTransition transition{
-                    .from = currentState,
-                    .to = result.state,
-                    .timestamp = now,
-                };
+                bool allowed = true;
+                auto it = std::find_if(profile.states.begin(),
+                    profile.states.end(),
+                    [this](const Core::StateDefinition &s) { return s.id == currentState; });
 
-                currentState = result.state;
-                stateEnteredAt = now;
-                pendingState.clear();
-                pendingFrameCount = 0;
-
-                // Cap history to prevent unbounded growth
-                if (history.size() > 1000)
+                if (it != profile.states.end() && !it->transitionsTo.empty())
                 {
-                    history.erase(history.begin(), history.begin() + 500);
+                    auto &allowedTargets = it->transitionsTo;
+                    if (std::find(allowedTargets.begin(), allowedTargets.end(), pendingState) == allowedTargets.end())
+                    {
+                        LOG_WARN("FSM: Illegal transition {} -> {}! (ignoring)", currentState, pendingState);
+                        allowed = false;
+                    }
                 }
-                history.push_back(transition);
 
-                return transition;
+                if (allowed)
+                {
+                    Core::StateTransition transition{
+                        .from = currentState, .to = pendingState, .timestamp = std::chrono::steady_clock::now()
+                    };
+
+                    currentState = pendingState;
+                    stateEnteredAt = transition.timestamp;
+                    pendingFrameCount = 0;
+
+                    RecordTransition(transition);
+
+                    return transition;
+                }
             }
         }
         else
@@ -95,17 +104,16 @@ namespace SH3DS::FSM
 
     void ConfigDrivenFSM::ForceState(const Core::GameState &state)
     {
-        auto now = std::chrono::steady_clock::now();
         Core::StateTransition transition{
-            .from = currentState,
-            .to = state,
-            .timestamp = now,
+            .from = currentState, .to = state, .timestamp = std::chrono::steady_clock::now()
         };
+
         currentState = state;
-        stateEnteredAt = now;
-        pendingState.clear();
+        stateEnteredAt = transition.timestamp;
+        pendingState = state;
         pendingFrameCount = 0;
-        history.push_back(transition);
+
+        RecordTransition(transition);
     }
 
     void ConfigDrivenFSM::Reset()
@@ -220,5 +228,14 @@ namespace SH3DS::FSM
         }
 
         return 0.0;
+    }
+
+    void ConfigDrivenFSM::RecordTransition(const Core::StateTransition &transition)
+    {
+        history.push_back(transition);
+        if (history.size() > 1000)
+        {
+            history.erase(history.begin(), history.begin() + 500);
+        }
     }
 } // namespace SH3DS::FSM
