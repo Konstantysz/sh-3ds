@@ -103,6 +103,6 @@ namespace SH3DS::FSM
         Core::GameState pendingState;                         ///< The pending state.
         int pendingFrameCount = 0;                            ///< The number of frames in the pending state.
         std::vector<Core::StateTransition> history;           ///< The history of state transitions.
-        std::map<std::string, cv::Mat> templateCache;         ///< The cache for template images.
+        mutable std::map<std::string, cv::Mat> templateCache; ///< The cache for template images.
     };
 } // namespace SH3DS::FSM

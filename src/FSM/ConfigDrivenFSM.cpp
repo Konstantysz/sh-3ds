@@ -164,10 +164,9 @@ namespace SH3DS::FSM
             return 0.0;
         }
 
-        // Lazy-load template (mutable cache via const_cast — acceptable for caching)
-        auto &cache = const_cast<std::map<std::string, cv::Mat> &>(templateCache);
-        auto it = cache.find(rule.templatePath);
-        if (it == cache.end())
+        // Lazy-load template
+        auto it = templateCache.find(rule.templatePath);
+        if (it == templateCache.end())
         {
             cv::Mat tmpl = cv::imread(rule.templatePath, cv::IMREAD_COLOR);
             if (tmpl.empty())
@@ -175,8 +174,8 @@ namespace SH3DS::FSM
                 LOG_WARN("Failed to load template: {}", rule.templatePath);
                 return 0.0;
             }
-            cache[rule.templatePath] = tmpl;
-            it = cache.find(rule.templatePath);
+            templateCache[rule.templatePath] = tmpl;
+            it = templateCache.find(rule.templatePath);
         }
 
         const cv::Mat &tmpl = it->second;
