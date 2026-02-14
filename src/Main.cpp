@@ -20,7 +20,6 @@ void SignalHandler(int signal)
 {
     if (globalOrchestrator)
     {
-        LOG_INFO("Signal {} received, stopping...", signal);
         globalOrchestrator->Stop();
     }
 }

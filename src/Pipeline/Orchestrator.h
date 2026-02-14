@@ -9,6 +9,7 @@
 #include "Strategy/HuntStrategy.h"
 #include "Vision/ShinyDetector.h"
 
+#include <atomic>
 #include <memory>
 
 namespace SH3DS::Pipeline
@@ -77,6 +78,6 @@ namespace SH3DS::Pipeline
         std::unique_ptr<Strategy::HuntStrategy> strategy;         ///< Hunt strategy
         std::unique_ptr<Input::InputAdapter> input;               ///< Input adapter for 3DS injection
         Core::OrchestratorConfig config;                          ///< Runtime configuration
-        bool running = false;                                     ///< Whether the main loop is running
+        std::atomic<bool> running = false;                        ///< Whether the main loop is running
     };
 } // namespace SH3DS::Pipeline
