@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
     std::string hardwareConfigPath = "config/hardware.yaml";
     std::string gameProfilePath = "config/games/pokemon_xy.yaml";
     std::string huntConfigPath = "config/hunts/xy_starter_sr.yaml";
-    std::string detectionProfilePath = "config/detection/xy_froakie.yaml";
+    std::string detectionProfilePath = "config/detection/xy_fennekin.yaml";
 
     app.add_option("--hardware", hardwareConfigPath, "Path to hardware config YAML");
     app.add_option("--game", gameProfilePath, "Path to game profile YAML");

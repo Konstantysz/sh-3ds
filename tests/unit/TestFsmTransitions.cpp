@@ -239,3 +239,156 @@ TEST(ConfigDrivenFSM, TimeInCurrentStateIncreases)
     auto t2 = fsm.TimeInCurrentState();
     EXPECT_GT(t2.count(), t1.count());
 }
+
+TEST(ConfigDrivenFSM, ReachabilityFilterBlocksUnreachableState)
+{
+    SH3DS::Core::GameProfile profile;
+    profile.gameId = "test_reachability";
+    profile.initialState = "state_a";
+    profile.debounceFrames = 2;
+
+    // state_a: detects red pixels, transitions to state_b only
+    SH3DS::Core::StateDefinition stateA;
+    stateA.id = "state_a";
+    stateA.detection.method = "color_histogram";
+    stateA.detection.roi = "full_screen";
+    stateA.detection.hsvLower = cv::Scalar(0, 200, 200);
+    stateA.detection.hsvUpper = cv::Scalar(10, 255, 255);
+    stateA.detection.pixelRatioMin = 0.5;
+    stateA.detection.threshold = 0.5;
+    stateA.transitionsTo = {"state_b"};
+    profile.states.push_back(stateA);
+
+    // state_b: detects green pixels, transitions to state_c
+    SH3DS::Core::StateDefinition stateB;
+    stateB.id = "state_b";
+    stateB.detection.method = "color_histogram";
+    stateB.detection.roi = "full_screen";
+    stateB.detection.hsvLower = cv::Scalar(55, 200, 200);
+    stateB.detection.hsvUpper = cv::Scalar(65, 255, 255);
+    stateB.detection.pixelRatioMin = 0.5;
+    stateB.detection.threshold = 0.5;
+    stateB.transitionsTo = {"state_c"};
+    profile.states.push_back(stateB);
+
+    // state_c: detects blue pixels (high confidence on our test frame)
+    SH3DS::Core::StateDefinition stateC;
+    stateC.id = "state_c";
+    stateC.detection.method = "color_histogram";
+    stateC.detection.roi = "full_screen";
+    stateC.detection.hsvLower = cv::Scalar(110, 200, 200);
+    stateC.detection.hsvUpper = cv::Scalar(130, 255, 255);
+    stateC.detection.pixelRatioMin = 0.5;
+    stateC.detection.threshold = 0.5;
+    stateC.transitionsTo = {"state_a"};
+    profile.states.push_back(stateC);
+
+    SH3DS::FSM::ConfigDrivenFSM fsm(profile);
+    EXPECT_EQ(fsm.CurrentState(), "state_a");
+
+    // Feed a blue frame: state_c would match with highest confidence,
+    // but state_a can only transition to state_b, so state_c is filtered out.
+    cv::Mat hsvBlue(240, 400, CV_8UC3, cv::Scalar(120, 255, 255));
+    cv::Mat bgrBlue;
+    cv::cvtColor(hsvBlue, bgrBlue, cv::COLOR_HSV2BGR);
+    SH3DS::Core::ROISet blueRoi;
+    blueRoi["full_screen"] = bgrBlue;
+
+    fsm.Update(blueRoi);
+    fsm.Update(blueRoi);
+    // Without reachability filter, FSM would try to transition to state_c.
+    // With the filter, state_c is not a candidate, so no transition happens.
+    EXPECT_EQ(fsm.CurrentState(), "state_a");
+}
+
+TEST(ConfigDrivenFSM, ReachabilityFilterAllowsLegalTransition)
+{
+    SH3DS::Core::GameProfile profile;
+    profile.gameId = "test_reachability_legal";
+    profile.initialState = "state_a";
+    profile.debounceFrames = 2;
+
+    SH3DS::Core::StateDefinition stateA;
+    stateA.id = "state_a";
+    stateA.detection.method = "color_histogram";
+    stateA.detection.roi = "full_screen";
+    stateA.detection.hsvLower = cv::Scalar(0, 200, 200);
+    stateA.detection.hsvUpper = cv::Scalar(10, 255, 255);
+    stateA.detection.pixelRatioMin = 0.5;
+    stateA.detection.threshold = 0.5;
+    stateA.transitionsTo = {"state_b"};
+    profile.states.push_back(stateA);
+
+    SH3DS::Core::StateDefinition stateB;
+    stateB.id = "state_b";
+    stateB.detection.method = "color_histogram";
+    stateB.detection.roi = "full_screen";
+    stateB.detection.hsvLower = cv::Scalar(55, 200, 200);
+    stateB.detection.hsvUpper = cv::Scalar(65, 255, 255);
+    stateB.detection.pixelRatioMin = 0.5;
+    stateB.detection.threshold = 0.5;
+    stateB.transitionsTo = {};
+    profile.states.push_back(stateB);
+
+    SH3DS::FSM::ConfigDrivenFSM fsm(profile);
+
+    // Feed green frames — state_b IS reachable from state_a
+    cv::Mat hsvGreen(240, 400, CV_8UC3, cv::Scalar(60, 255, 255));
+    cv::Mat bgrGreen;
+    cv::cvtColor(hsvGreen, bgrGreen, cv::COLOR_HSV2BGR);
+    SH3DS::Core::ROISet greenRoi;
+    greenRoi["full_screen"] = bgrGreen;
+
+    fsm.Update(greenRoi);
+    auto t = fsm.Update(greenRoi);
+    ASSERT_TRUE(t.has_value());
+    EXPECT_EQ(t->to, "state_b");
+}
+
+TEST(ConfigDrivenFSM, IllegalTransitionResetsPendingState)
+{
+    SH3DS::Core::GameProfile profile;
+    profile.gameId = "test_illegal_reset";
+    profile.initialState = "state_a";
+    profile.debounceFrames = 2;
+
+    // state_a detects red, can transition to state_b only
+    SH3DS::Core::StateDefinition stateA;
+    stateA.id = "state_a";
+    stateA.detection.method = "color_histogram";
+    stateA.detection.roi = "full_screen";
+    stateA.detection.hsvLower = cv::Scalar(0, 200, 200);
+    stateA.detection.hsvUpper = cv::Scalar(10, 255, 255);
+    stateA.detection.pixelRatioMin = 0.5;
+    stateA.detection.threshold = 0.5;
+    stateA.transitionsTo = {"state_b"};
+    profile.states.push_back(stateA);
+
+    // state_b detects green
+    SH3DS::Core::StateDefinition stateB;
+    stateB.id = "state_b";
+    stateB.detection.method = "color_histogram";
+    stateB.detection.roi = "full_screen";
+    stateB.detection.hsvLower = cv::Scalar(55, 200, 200);
+    stateB.detection.hsvUpper = cv::Scalar(65, 255, 255);
+    stateB.detection.pixelRatioMin = 0.5;
+    stateB.detection.threshold = 0.5;
+    stateB.transitionsTo = {};
+    profile.states.push_back(stateB);
+
+    SH3DS::FSM::ConfigDrivenFSM fsm(profile);
+
+    // With reachability filter, state_b IS in the candidate set, so green frames should transition
+    cv::Mat hsvGreen(240, 400, CV_8UC3, cv::Scalar(60, 255, 255));
+    cv::Mat bgrGreen;
+    cv::cvtColor(hsvGreen, bgrGreen, cv::COLOR_HSV2BGR);
+    SH3DS::Core::ROISet greenRoi;
+    greenRoi["full_screen"] = bgrGreen;
+
+    // After debounce, should transition to state_b (legal from state_a)
+    fsm.Update(greenRoi);
+    auto t = fsm.Update(greenRoi);
+    ASSERT_TRUE(t.has_value());
+    EXPECT_EQ(t->from, "state_a");
+    EXPECT_EQ(t->to, "state_b");
+}

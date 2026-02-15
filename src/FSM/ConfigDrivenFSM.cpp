@@ -67,6 +67,11 @@ namespace SH3DS::FSM
 
                     return transition;
                 }
+                else
+                {
+                    pendingState.clear();
+                    pendingFrameCount = 0;
+                }
             }
         }
         else
@@ -133,11 +138,37 @@ namespace SH3DS::FSM
 
     ConfigDrivenFSM::DetectionResult ConfigDrivenFSM::EvaluateRules(const Core::ROISet &rois) const
     {
-        LOG_INFO("FSM: EvaluateRules called with {} ROIs, profile has {} states", rois.size(), profile.states.size());
+        LOG_DEBUG("FSM: EvaluateRules called with {} ROIs, profile has {} states", rois.size(), profile.states.size());
         DetectionResult bestResult;
+
+        // Build candidate set: currentState + its allowed transitions
+        // If no transition constraints exist, evaluate all states (backward compat)
+        std::vector<std::string> candidates;
+        bool hasTransitionConstraints = false;
 
         for (const auto &stateDef : profile.states)
         {
+            if (stateDef.id == currentState)
+            {
+                candidates.push_back(currentState);
+                if (!stateDef.transitionsTo.empty())
+                {
+                    hasTransitionConstraints = true;
+                    candidates.insert(candidates.end(), stateDef.transitionsTo.begin(), stateDef.transitionsTo.end());
+                }
+                break;
+            }
+        }
+
+        for (const auto &stateDef : profile.states)
+        {
+            if (hasTransitionConstraints)
+            {
+                if (std::find(candidates.begin(), candidates.end(), stateDef.id) == candidates.end())
+                {
+                    continue;
+                }
+            }
             const auto &rule = stateDef.detection;
             auto it = rois.find(rule.roi);
             if (it == rois.end() || it->second.empty())
