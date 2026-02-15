@@ -1,6 +1,6 @@
 #include "DominantColorDetector.h"
 
-#include "Core/Logging.h"
+#include "Kappa/Logger.h"
 
 #include <opencv2/imgproc.hpp>
 

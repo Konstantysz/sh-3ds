@@ -1,6 +1,6 @@
 #include "Orchestrator.h"
 
-#include "Core/Logging.h"
+#include "Kappa/Logger.h"
 
 #include <chrono>
 #include <thread>
@@ -36,6 +36,22 @@ namespace SH3DS::Pipeline
         auto tickInterval = std::chrono::microseconds(static_cast<int64_t>(1'000'000.0 / config.targetFps));
 
         LOG_INFO("Orchestrator starting at {:.1f} FPS (dry_run={})", config.targetFps, config.dryRun);
+
+        if (frameSource && !frameSource->Open())
+        {
+            LOG_CRITICAL("Orchestrator: Failed to open frame source: {}", frameSource->Describe());
+            return;
+        }
+
+        if (input && !input->IsConnected())
+        {
+            LOG_INFO("Orchestrator: Connecting to input adapter...");
+            // Use a default address if not connected, though it should ideally be handled earlier
+            if (!input->Connect("127.0.0.1"))
+            {
+                LOG_WARN("Orchestrator: Failed to connect to input adapter.");
+            }
+        }
 
         try
         {
@@ -94,25 +110,31 @@ namespace SH3DS::Pipeline
 
     void Orchestrator::MainLoopTick()
     {
+        LOG_DEBUG("Orchestrator: Grabbing frame...");
         auto frame = frameSource->Grab();
         if (!frame.has_value())
         {
+            LOG_TRACE("Orchestrator: frameSource->Grab() returned nullopt (exhausted or timeout).");
             return;
         }
 
+        LOG_DEBUG("Orchestrator: Processing frame #{}...", frame->metadata.sequenceNumber);
         auto rois = preprocessor->Process(frame->image);
         if (!rois.has_value())
         {
-            LOG_DEBUG("Screen not detected in frame #{}", frame->metadata.sequenceNumber);
+            LOG_DEBUG("Orchestrator: Screen not detected in frame #{}", frame->metadata.sequenceNumber);
             return;
         }
 
+        LOG_DEBUG("Orchestrator: Updating FSM...");
         auto transition = fsm->Update(*rois);
         if (transition.has_value())
         {
-            LOG_INFO("FSM: {} -> {}", transition->from, transition->to);
+            LOG_INFO(
+                "Frame #{}: FSM Transition {} -> {}", frame->metadata.sequenceNumber, transition->from, transition->to);
         }
 
+        LOG_DEBUG("Orchestrator: Detecting shiny...");
         std::optional<Core::ShinyResult> shinyResult;
         auto spriteIt = rois->find("pokemon_sprite");
         if (spriteIt != rois->end() && !spriteIt->second.empty())
@@ -120,9 +142,16 @@ namespace SH3DS::Pipeline
             shinyResult = detector->Detect(spriteIt->second);
         }
 
+        LOG_DEBUG("Orchestrator: Strategy tick (current state: {})...", fsm->CurrentState());
         auto strategyDecision = strategy->Tick(fsm->CurrentState(), fsm->TimeInCurrentState(), shinyResult);
+
+        LOG_DEBUG("Orchestrator: Executing decision...");
         ExecuteDecision(strategyDecision);
+
+        LOG_DEBUG("Orchestrator: Watchdog handling...");
         HandleWatchdog();
+
+        LOG_DEBUG("Orchestrator: MainLoopTick complete.");
     }
 
     void Orchestrator::HandleWatchdog()

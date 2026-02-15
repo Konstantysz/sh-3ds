@@ -1,13 +1,14 @@
 #include "Capture/FileFrameSource.h"
 #include "Capture/FramePreprocessor.h"
 #include "Core/Config.h"
-#include "Core/Logging.h"
 #include "Core/Types.h"
 #include "FSM/ConfigDrivenFSM.h"
 #include "Input/MockInputAdapter.h"
 #include "Pipeline/Orchestrator.h"
 #include "Strategy/SoftResetStrategy.h"
 #include "Vision/DominantColorDetector.h"
+
+#include "Kappa/Logger.h"
 
 #include <CLI/CLI.hpp>
 
@@ -26,6 +27,9 @@ void SignalHandler([[maybe_unused]] int signal)
 
 int main(int argc, char *argv[])
 {
+    // Set logger name before any logging
+    Kappa::Logger::SetLoggerName("SH-3DS");
+
     CLI::App app{ "SH-3DS: Networked Shiny Hunting Bot" };
     LOG_INFO("Starting main...");
 

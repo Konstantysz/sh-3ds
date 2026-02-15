@@ -52,11 +52,14 @@ FrameSource (abstract) → FramePreprocessor → GameStateFSM (abstract) → Shi
 ```
 
 **Abstract bases** (no `I` prefix) in `include/sh3ds/`:
+
 - `FrameSource` — frame acquisition (`FileFrameSource` for replay, `MjpegFrameSource` planned)
 - `GameStateFSM` — game state tracking (`ConfigDrivenFSM` loads states/rules from YAML)
 - `ShinyDetector` — shiny detection (`DominantColorDetector`, `HistogramDetector`)
 - `HuntStrategy` — hunt orchestration (`SoftResetStrategy`)
 - `InputAdapter` — 3DS input injection (`MockInputAdapter` for testing)
+
+**Logging:** Uses `Kappa::Logger` macros like `LOG_ERROR` or `LOG_INFO`.
 
 **Game states are strings** (not enums) loaded from YAML — new games = new config, no recompilation. FSM uses debounce (N consecutive frames) before transitioning.
 

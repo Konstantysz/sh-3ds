@@ -1,6 +1,6 @@
 #include "ConfigDrivenFSM.h"
 
-#include "Core/Logging.h"
+#include "Kappa/Logger.h"
 #include "Vision/TemplateMatcher.h"
 
 #include <opencv2/imgcodecs.hpp>
@@ -133,6 +133,7 @@ namespace SH3DS::FSM
 
     ConfigDrivenFSM::DetectionResult ConfigDrivenFSM::EvaluateRules(const Core::ROISet &rois) const
     {
+        LOG_INFO("FSM: EvaluateRules called with {} ROIs, profile has {} states", rois.size(), profile.states.size());
         DetectionResult bestResult;
 
         for (const auto &stateDef : profile.states)
@@ -151,10 +152,16 @@ namespace SH3DS::FSM
             {
                 confidence = EvaluateTemplateMatch(roiMat, rule);
             }
-            else if (rule.method == "color_histogram")
+            else if (rule.method == "color_histogram" || rule.method == "pixel_ratio")
             {
                 confidence = EvaluateColorHistogram(roiMat, rule);
             }
+
+            LOG_DEBUG("FSM: Evaluating Rule for state '{}' on ROI '{}': confidence={:.3f} (threshold={:.2f})",
+                stateDef.id,
+                rule.roi,
+                confidence,
+                rule.threshold);
 
             if (confidence >= rule.threshold && confidence > bestResult.confidence)
             {

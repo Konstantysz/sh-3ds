@@ -1,4 +1,4 @@
-add_library(sh3ds_core STATIC Config.cpp Logging.cpp)
+add_library(sh3ds_core STATIC Config.cpp)
 add_library(SH3DS::Core ALIAS sh3ds_core)
 
 target_include_directories(
@@ -9,8 +9,8 @@ target_include_directories(
 target_link_libraries(
   sh3ds_core
   PUBLIC
+    Kappa
     opencv_core
-    spdlog::spdlog
     yaml-cpp::yaml-cpp
 )
 

@@ -12,26 +12,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-include(cmake/CompilerWarnings.cmake)
-include(cmake/Sanitizers.cmake)
+# Include project modules
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(CompilerWarnings)
+include(Sanitizers)
+include(Dependencies)
 
-find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs videoio)
-find_package(spdlog REQUIRED)
-find_package(yaml-cpp REQUIRED)
-find_package(CLI11 REQUIRED)
-
-add_subdirectory(src/Core)
-add_subdirectory(src/Input)
-add_subdirectory(src/Capture)
-add_subdirectory(src/FSM)
-
-add_subdirectory(src/Vision)
-add_subdirectory(src/Strategy)
-add_subdirectory(src/Pipeline)
-
-add_executable(sh3ds src/Main.cpp)
-target_link_libraries(sh3ds PRIVATE SH3DS::Pipeline CLI11::CLI11)
-sh3ds_set_warnings(sh3ds)
+add_subdirectory(src)
 
 option(SH3DS_BUILD_TESTS "Build tests" ON)
 
@@ -39,3 +26,15 @@ if(SH3DS_BUILD_TESTS)
   enable_testing()
   add_subdirectory(tests)
 endif()
+
+# Print configuration summary
+message(STATUS "")
+message(STATUS "=========================================================")
+message(STATUS "  SH-3DS: Networked Shiny Hunting Bot v${PROJECT_VERSION}")
+message(STATUS "=========================================================")
+message(STATUS "  Platform: ${CMAKE_SYSTEM_NAME}")
+message(STATUS "  Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "  C++ Standard: C++${CMAKE_CXX_STANDARD}")
+message(STATUS "  Compiler: ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "=========================================================")
+message(STATUS "")

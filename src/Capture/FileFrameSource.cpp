@@ -1,6 +1,6 @@
 #include "FileFrameSource.h"
 
-#include "Core/Logging.h"
+#include "Kappa/Logger.h"
 
 #include <opencv2/imgcodecs.hpp>
 
