@@ -32,6 +32,18 @@ target_link_libraries(TestFsmTransitions PRIVATE SH3DS::FSM)
 sh3ds_add_test(TestShinyDetector unit/TestShinyDetector.cpp)
 target_link_libraries(TestShinyDetector PRIVATE SH3DS::Vision)
 
+sh3ds_add_test(TestFileFrameSourceSeek unit/TestFileFrameSourceSeek.cpp)
+target_link_libraries(TestFileFrameSourceSeek PRIVATE SH3DS::Capture)
+
+sh3ds_add_test(TestFramePreprocessorDualScreen unit/TestFramePreprocessorDualScreen.cpp)
+target_link_libraries(TestFramePreprocessorDualScreen PRIVATE SH3DS::Capture)
+
+sh3ds_add_test(TestConfigBottomScreen unit/TestConfigBottomScreen.cpp)
+target_link_libraries(TestConfigBottomScreen PRIVATE SH3DS::Core)
+
+sh3ds_add_test(TestVideoFrameSource unit/TestVideoFrameSource.cpp)
+target_link_libraries(TestVideoFrameSource PRIVATE SH3DS::Capture)
+
 # Integration tests
 sh3ds_add_test(TestReplayPipeline integration/TestReplayPipeline.cpp)
 target_link_libraries(TestReplayPipeline PRIVATE SH3DS::Core SH3DS::Capture SH3DS::FSM SH3DS::Vision)

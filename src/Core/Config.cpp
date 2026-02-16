@@ -82,6 +82,21 @@ namespace SH3DS::Core
                 calib["target_height"].as<int>(config.screenCalibration.targetHeight);
         }
 
+        if (auto bottomCalib = root["bottom_screen_calibration"])
+        {
+            ScreenCalibrationConfig bottom;
+            if (auto corners = bottomCalib["corners"])
+            {
+                for (size_t i = 0; i < 4 && i < corners.size(); ++i)
+                {
+                    bottom.corners[i] = ParsePoint2f(corners[i]);
+                }
+            }
+            bottom.targetWidth = bottomCalib["target_width"].as<int>(320);
+            bottom.targetHeight = bottomCalib["target_height"].as<int>(240);
+            config.bottomScreenCalibration = bottom;
+        }
+
         if (auto orch = root["orchestrator"])
         {
             config.orchestrator.targetFps = orch["target_fps"].as<double>(config.orchestrator.targetFps);

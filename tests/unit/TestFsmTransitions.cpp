@@ -256,7 +256,7 @@ TEST(ConfigDrivenFSM, ReachabilityFilterBlocksUnreachableState)
     stateA.detection.hsvUpper = cv::Scalar(10, 255, 255);
     stateA.detection.pixelRatioMin = 0.5;
     stateA.detection.threshold = 0.5;
-    stateA.transitionsTo = {"state_b"};
+    stateA.transitionsTo = { "state_b" };
     profile.states.push_back(stateA);
 
     // state_b: detects green pixels, transitions to state_c
@@ -268,7 +268,7 @@ TEST(ConfigDrivenFSM, ReachabilityFilterBlocksUnreachableState)
     stateB.detection.hsvUpper = cv::Scalar(65, 255, 255);
     stateB.detection.pixelRatioMin = 0.5;
     stateB.detection.threshold = 0.5;
-    stateB.transitionsTo = {"state_c"};
+    stateB.transitionsTo = { "state_c" };
     profile.states.push_back(stateB);
 
     // state_c: detects blue pixels (high confidence on our test frame)
@@ -280,7 +280,7 @@ TEST(ConfigDrivenFSM, ReachabilityFilterBlocksUnreachableState)
     stateC.detection.hsvUpper = cv::Scalar(130, 255, 255);
     stateC.detection.pixelRatioMin = 0.5;
     stateC.detection.threshold = 0.5;
-    stateC.transitionsTo = {"state_a"};
+    stateC.transitionsTo = { "state_a" };
     profile.states.push_back(stateC);
 
     SH3DS::FSM::ConfigDrivenFSM fsm(profile);
@@ -316,7 +316,7 @@ TEST(ConfigDrivenFSM, ReachabilityFilterAllowsLegalTransition)
     stateA.detection.hsvUpper = cv::Scalar(10, 255, 255);
     stateA.detection.pixelRatioMin = 0.5;
     stateA.detection.threshold = 0.5;
-    stateA.transitionsTo = {"state_b"};
+    stateA.transitionsTo = { "state_b" };
     profile.states.push_back(stateA);
 
     SH3DS::Core::StateDefinition stateB;
@@ -361,7 +361,7 @@ TEST(ConfigDrivenFSM, IllegalTransitionResetsPendingState)
     stateA.detection.hsvUpper = cv::Scalar(10, 255, 255);
     stateA.detection.pixelRatioMin = 0.5;
     stateA.detection.threshold = 0.5;
-    stateA.transitionsTo = {"state_b"};
+    stateA.transitionsTo = { "state_b" };
     profile.states.push_back(stateA);
 
     // state_b detects green

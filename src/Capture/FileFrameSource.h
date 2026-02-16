@@ -1,3 +1,4 @@
+#include "FrameSeeker.h"
 #include "FrameSource.h"
 
 #include <algorithm>
@@ -12,7 +13,9 @@ namespace SH3DS::Capture
      * @brief Reads frames sequentially from a directory of PNG/JPG files.
      * Critical for replay testing — enables fully deterministic offline pipeline.
      */
-    class FileFrameSource : public FrameSource
+    class FileFrameSource
+        : public FrameSource
+        , public FrameSeeker
     {
     public:
         /**
@@ -31,6 +34,9 @@ namespace SH3DS::Capture
         bool IsOpen() const override;
 
         std::string Describe() const override;
+
+        bool Seek(size_t frameIndex) override;
+        size_t GetFrameCount() const override;
 
         /**
          * @brief Creates a file frame source from a directory of frames.

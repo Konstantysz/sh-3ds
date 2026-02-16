@@ -87,6 +87,21 @@ namespace SH3DS::Capture
         return "FileFrameSource(" + directory.string() + ", " + std::to_string(framePaths.size()) + " frames)";
     }
 
+    bool FileFrameSource::Seek(size_t frameIndex)
+    {
+        if (frameIndex >= framePaths.size())
+        {
+            return false;
+        }
+        currentIndex = frameIndex;
+        return true;
+    }
+
+    size_t FileFrameSource::GetFrameCount() const
+    {
+        return framePaths.size();
+    }
+
     std::unique_ptr<FrameSource> FileFrameSource::CreateFileFrameSource(const std::filesystem::path &directory,
         double playbackFps)
     {

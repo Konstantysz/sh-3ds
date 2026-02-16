@@ -1,0 +1,24 @@
+detection:
+  profile_id: "xy_fennekin"
+  game: "pokemon_xy"
+  pokemon: "fennekin"
+
+  methods:
+    - method: "dominant_color"
+      weight: 1.0
+      # Based on projected hardware shift (Gamma 1.3, WB)
+      # Normal (Yellowish) -> Shifts to Cyan/Blue (~110)
+      normal_hsv_lower: [100, 60, 150]
+      normal_hsv_upper: [120, 120, 230]
+
+      # Shiny (Greyish/Reddish) -> Shifts further or desaturates
+      # Projected shift based on ref diff (+14)
+      shiny_hsv_lower: [120, 40, 150]
+      shiny_hsv_upper: [140, 100, 230]
+
+      shiny_ratio_threshold: 0.15
+      normal_ratio_threshold: 0.15
+
+  fusion:
+    shiny_threshold: 0.55
+    uncertain_threshold: 0.35

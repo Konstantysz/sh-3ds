@@ -1,113 +1,177 @@
 game:
   id: "pokemon_xy"
-  name: "Pokemon X / Pokemon Y"
+  name: "Pokemon X/Y"
+version: "1.0"
 
+# Regions of Interest (relative to warped screens, normalized 0.0-1.0)
 rois:
-  - name: "full_screen"
-    x: 0.0
-    y: 0.0
-    w: 1.0
-    h: 1.0
-  - name: "pokemon_sprite"
-    x: 0.30
+  - name: "top_full"
+    x: 0.05
     y: 0.05
-    w: 0.40
-    h: 0.65
-  - name: "dialogue_box"
-    x: 0.02
-    y: 0.72
-    w: 0.96
-    h: 0.26
-  - name: "background_top"
-    x: 0.0
-    y: 0.0
-    w: 1.0
-    h: 0.15
-  - name: "sparkle_region"
-    x: 0.20
-    y: 0.0
-    w: 0.60
-    h: 0.80
+    w: 0.9
+    h: 0.9
+  - name: "top_strip"
+    x: 0.1
+    y: 0.05
+    w: 0.8
+    h: 0.12
+  - name: "dialogue"
+    x: 0.1
+    y: 0.75
+    w: 0.8
+    h: 0.2
+  - name: "pokemon_sprite"
+    x: 0.3
+    y: 0.3
+    w: 0.4
+    h: 0.4
 
+# FSM States
+# HSV ranges calibrated from calibration_results_v4.txt (warped + preprocessed frames)
+# NOTE: transitions_to constrains which states are candidates for matching.
+# HSV ranges should not overlap within a single transition set.
 states:
-  initial: "unknown"
+  initial: "load_game"
   debounce_frames: 3
   definitions:
-    - id: "title_screen"
-      description: "Main title screen with 'Press Start' text"
-      detection:
-        method: "template_match"
-        roi: "full_screen"
-        template_path: "assets/templates/pokemon_xy/title_screen.png"
-        threshold: 0.75
-      transitions_to: ["intro_cutscene", "unknown"]
-      max_duration_s: 30
-
-    - id: "intro_cutscene"
-      description: "Opening cutscene / NPC dialogue before starter selection"
-      detection:
-        method: "color_histogram"
-        roi: "background_top"
-        hsv_lower: [0, 0, 200]
-        hsv_upper: [180, 40, 255]
-        pixel_ratio_min: 0.5
-        threshold: 0.7
-      transitions_to: ["starter_selection"]
-      max_duration_s: 60
-
-    - id: "starter_selection"
-      description: "Screen showing 3 starter Pokemon to choose from"
-      detection:
-        method: "template_match"
-        roi: "full_screen"
-        template_path: "assets/templates/pokemon_xy/starter_selection_bg.png"
-        threshold: 0.70
-      transitions_to: ["starter_confirm"]
-      max_duration_s: 30
-
-    - id: "starter_confirm"
-      description: "Confirmation dialogue after choosing a starter"
-      detection:
-        method: "template_match"
-        roi: "dialogue_box"
-        template_path: "assets/templates/pokemon_xy/confirm_dialogue.png"
-        threshold: 0.70
-      transitions_to: ["starter_reveal"]
+    # Frame 1: Yellowish loading strip
+    # Calibrated avg: [75, 80, 218] on top_strip
+    # Key discriminator: H=75 (unique yellow hue, no overlap with blue-ish states)
+    - id: "load_game"
       max_duration_s: 15
-
-    - id: "starter_reveal"
-      description: "Starter Pokemon is shown — SHINY CHECK STATE"
       detection:
         method: "color_histogram"
-        roi: "full_screen"
-        hsv_lower: [0, 0, 0]
-        hsv_upper: [180, 255, 255]
-        pixel_ratio_min: 0.0
-        threshold: 0.3
-      transitions_to: ["post_reveal"]
+        roi: "top_strip"
+        hsv_lower: [60, 60, 190]
+        hsv_upper: [90, 100, 255]
+        threshold: 0.6
+      transitions_to: ["game_start", "soft_reset"]
+
+    # Frame 32: White flash/game start — very low saturation (S=26)
+    # Calibrated avg: [92, 26, 235] on top_strip
+    # Key discriminator: S<45 (near-white, separates from all colored states)
+    - id: "game_start"
+      max_duration_s: 10
+      detection:
+        method: "color_histogram"
+        roi: "top_strip"
+        hsv_lower: [75, 0, 210]
+        hsv_upper: [110, 45, 255]
+        threshold: 0.6
+      transitions_to: ["cutscene_start", "soft_reset"]
+
+    # Frame 40: Dialogue box appears
+    # Calibrated avg: [109, 54, 221] on dialogue
+    # Key discriminator: S=54 (low saturation dialogue, vs cutscene S=79)
+    - id: "cutscene_start"
+      max_duration_s: 10
+      detection:
+        method: "color_histogram"
+        roi: "dialogue"
+        hsv_lower: [100, 35, 200]
+        hsv_upper: [120, 70, 255]
+        threshold: 0.6
+      transitions_to: ["cutscene", "soft_reset"]
+
+    # Frame 60: General cutscene dialogue
+    # Calibrated avg: [105, 79, 206] on dialogue
+    # Key discriminator: S=79 (medium saturation, vs cutscene_start S=54)
+    - id: "cutscene"
+      max_duration_s: 30
+      detection:
+        method: "color_histogram"
+        roi: "dialogue"
+        hsv_lower: [95, 65, 185]
+        hsv_upper: [115, 95, 225]
+        threshold: 0.6
+      transitions_to: ["starter_pick", "soft_reset"]
+
+    # Frame 197: Starter selection menu
+    # Calibrated avg: [109, 98, 203] on top_strip
+    # Key discriminator: S=98 (higher saturation than nickname_prompt S=90)
+    - id: "starter_pick"
+      max_duration_s: 15
+      detection:
+        method: "color_histogram"
+        roi: "top_strip"
+        hsv_lower: [100, 80, 180]
+        hsv_upper: [118, 115, 225]
+        threshold: 0.6
+      transitions_to: ["nickname_prompt", "soft_reset"]
+
+    # Frame 282: Nickname prompt
+    # Calibrated avg: [111, 90, 184] on top_strip
+    # Key discriminator: V=184 (lower value than starter_pick V=203)
+    - id: "nickname_prompt"
+      max_duration_s: 10
+      detection:
+        method: "color_histogram"
+        roi: "top_strip"
+        hsv_lower: [100, 75, 165]
+        hsv_upper: [120, 105, 200]
+        threshold: 0.5
+      transitions_to: ["post_selection", "soft_reset"]
+
+    # Frame 382: Post-selection dialogue — HIGH saturation (S=163)
+    # Calibrated avg: [112, 163, 146] on dialogue
+    # Key discriminator: S=163 (very high, unique among dialogue states)
+    - id: "post_selection"
+      max_duration_s: 15
+      detection:
+        method: "color_histogram"
+        roi: "dialogue"
+        hsv_lower: [100, 145, 125]
+        hsv_upper: [125, 180, 170]
+        threshold: 0.5
+      transitions_to: ["cutscene_end", "soft_reset"]
+
+    # Frame 453: Cutscene ending dialogue
+    # Calibrated avg: [111, 89, 175] on dialogue
+    # Key discriminator: V=175 (lower than cutscene V=206)
+    - id: "cutscene_end"
+      max_duration_s: 15
+      detection:
+        method: "color_histogram"
+        roi: "dialogue"
+        hsv_lower: [100, 75, 155]
+        hsv_upper: [120, 105, 195]
+        threshold: 0.5
+      transitions_to: ["party_menu", "soft_reset"]
+
+    # Frame 473: Party menu — high saturation (S=147)
+    # Calibrated avg: [102, 147, 202] on top_strip
+    # Key discriminator: S=147 (very high, unique among top_strip states)
+    - id: "party_menu"
+      max_duration_s: 10
+      detection:
+        method: "color_histogram"
+        roi: "top_strip"
+        hsv_lower: [96, 130, 180]
+        hsv_upper: [112, 165, 225]
+        threshold: 0.6
+      transitions_to: ["pokemon_summary", "soft_reset"]
+
+    # Frame 495: Pokemon summary page (shiny check)
+    # Calibrated avg: [110, 88, 189] on pokemon_sprite
+    - id: "pokemon_summary"
       max_duration_s: 20
       shiny_check: true
-
-    - id: "post_reveal"
-      description: "After starter reveal, before soft reset"
       detection:
         method: "color_histogram"
-        roi: "full_screen"
-        hsv_lower: [0, 0, 0]
-        hsv_upper: [180, 255, 255]
-        pixel_ratio_min: 0.0
+        roi: "pokemon_sprite"
+        hsv_lower: [100, 70, 165]
+        hsv_upper: [120, 105, 215]
         threshold: 0.3
-      transitions_to: ["soft_reset", "title_screen"]
-      max_duration_s: 10
+      transitions_to: ["soft_reset"]
 
+    # Frame 513: Black screen (V=23 is the key discriminator)
+    # Calibrated avg: [107, 100, 23] on top_full
     - id: "soft_reset"
-      description: "Transient state during soft reset (black screen)"
+      max_duration_s: 15
       detection:
         method: "color_histogram"
-        roi: "full_screen"
+        roi: "top_full"
         hsv_lower: [0, 0, 0]
-        hsv_upper: [180, 30, 30]
-        pixel_ratio_min: 0.85
-        threshold: 0.8
-      transitions_to: ["title_screen"]
-      max_duration_s: 15
+        hsv_upper: [180, 255, 40]
+        threshold: 0.95
+      transitions_to: ["load_game"]

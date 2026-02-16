@@ -1,23 +1,23 @@
 {
-    "name": "sh3ds",
-    "version": "0.1.0",
-    "description": "SH-3DS: Networked Shiny Hunting Bot (Vision-driven)",
-    "dependencies": [
-        "cli11",
-        "glfw3",
-        "glad",
-        "glm",
-        "gtest",
-        {
-            "name": "imgui",
-            "features": ["glfw-binding", "opengl3-binding"]
-        },
-        "nlohmann-json",
-        {
-            "name": "opencv4",
-            "features": ["ffmpeg", "jpeg", "png"]
-        },
-        "spdlog",
-        "yaml-cpp"
-    ]
+  "name": "sh3ds",
+  "version": "0.1.0",
+  "description": "SH-3DS: Networked Shiny Hunting Bot (Vision-driven)",
+  "dependencies": [
+    "cli11",
+    "glfw3",
+    "glad",
+    "glm",
+    "gtest",
+    {
+      "name": "imgui",
+      "features": ["docking-experimental", "glfw-binding", "opengl3-binding"]
+    },
+    "nlohmann-json",
+    {
+      "name": "opencv4",
+      "features": ["ffmpeg", "jpeg", "png"]
+    },
+    "spdlog",
+    "yaml-cpp"
+  ]
 }

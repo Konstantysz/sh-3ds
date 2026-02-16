@@ -1,14 +1,14 @@
+#include "App/SH3DSDebugApp.h"
 #include "Capture/FileFrameSource.h"
 #include "Capture/FramePreprocessor.h"
 #include "Core/Config.h"
 #include "Core/Types.h"
 #include "FSM/ConfigDrivenFSM.h"
 #include "Input/MockInputAdapter.h"
+#include "Kappa/Logger.h"
 #include "Pipeline/Orchestrator.h"
 #include "Strategy/SoftResetStrategy.h"
 #include "Vision/DominantColorDetector.h"
-
-#include "Kappa/Logger.h"
 
 #include <CLI/CLI.hpp>
 
@@ -31,22 +31,45 @@ int main(int argc, char *argv[])
     Kappa::Logger::SetLoggerName("SH-3DS");
 
     CLI::App app{ "SH-3DS: Networked Shiny Hunting Bot" };
-    LOG_INFO("Starting main...");
 
+    std::string mode = "console";
     std::string hardwareConfigPath = "config/hardware.yaml";
     std::string gameProfilePath = "config/games/pokemon_xy.yaml";
     std::string huntConfigPath = "config/hunts/xy_starter_sr.yaml";
     std::string detectionProfilePath = "config/detection/xy_fennekin.yaml";
+    std::string replayPath;
 
+    // TODO: split GUI into separate sh3ds-debug executable to avoid linking ImGui/OpenGL in console builds
+    app.add_option("--mode", mode, "Mode: console or gui")
+        ->default_val("console")
+        ->check(CLI::IsMember({ "console", "gui" }));
     app.add_option("--hardware", hardwareConfigPath, "Path to hardware config YAML");
     app.add_option("--game", gameProfilePath, "Path to game profile YAML");
     app.add_option("--hunt", huntConfigPath, "Path to hunt strategy config YAML");
     app.add_option("--detection", detectionProfilePath, "Path to detection profile YAML");
+    app.add_option("--replay", replayPath, "Replay source (directory or video file) for GUI mode");
 
     CLI11_PARSE(app, argc, argv);
 
     try
     {
+        if (mode == "gui")
+        {
+            if (replayPath.empty())
+            {
+                LOG_ERROR("--replay is required for GUI mode");
+                return 1;
+            }
+
+            LOG_INFO("Starting GUI mode...");
+            SH3DS::App::SH3DSDebugApp debugApp(hardwareConfigPath, gameProfilePath, detectionProfilePath, replayPath);
+            debugApp.Run();
+            return 0;
+        }
+
+        // Console mode (default)
+        LOG_INFO("Starting console mode...");
+
         auto hardwareConfig = SH3DS::Core::LoadHardwareConfig(hardwareConfigPath);
         auto gameProfile = SH3DS::Core::LoadGameProfile(gameProfilePath);
         auto huntConfig = SH3DS::Core::LoadHuntConfig(huntConfigPath);

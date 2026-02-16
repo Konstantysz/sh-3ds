@@ -1,9 +1,6 @@
 camera:
-  type: "mjpeg"
-  uri: "http://192.168.1.100:8080/video"
-  reconnect_delay_ms: 2000
-  max_reconnect_attempts: 10
-  grab_timeout_ms: 5000
+  type: "file"
+  uri: "video_replays/fennekin_normal/images"
 
 console:
   type: "luma3ds"
@@ -14,21 +11,25 @@ console:
   keepalive_interval_ms: 500
 
 screen_calibration:
-  corners:
-    - [85, 42]
-    - [555, 38]
-    - [560, 320]
-    - [80, 325]
+  # Calibrated corners for top screen (from calibrate.py)
+  corners: [[422, 124], [857, 122], [849, 380], [428, 379]]
   target_width: 400
   target_height: 240
+
+# Bottom screen calibration (requires manual calibration)
+# Uncomment and set corners when calibrated:
+# bottom_screen_calibration:
+#   corners: [[0, 0], [0, 0], [0, 0], [0, 0]]
+#   target_width: 320
+#   target_height: 240
 
 orchestrator:
   target_fps: 12.0
   watchdog_timeout_s: 120
-  dry_run: false
+  dry_run: true
   record_frames: false
   record_path: "./recordings"
-  log_level: "info"
+  log_level: "debug"
   log_file: "./logs/sh3ds.log"
   log_rotation_mb: 50
   log_max_files: 5

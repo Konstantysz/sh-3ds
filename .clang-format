@@ -54,11 +54,11 @@ IncludeCategories:
   # Priority 2: SH3DS project headers (angle-bracket)
   - Regex: '^"SH3DS/'
     Priority: 2
-  # Priority 3: OpenCV headers
-  - Regex: '^<opencv2/'
+  # Priority 3: Kappa headers
+  - Regex: '^"Kappa/'
     Priority: 3
-  # Priority 4: spdlog, yaml-cpp, CLI11
-  - Regex: '^<(spdlog|yaml-cpp|CLI)/'
+  # Priority 4: OpenCV, spdlog, yaml-cpp, CLI11
+  - Regex: '^<(opencv2|spdlog|yaml-cpp|CLI)/'
     Priority: 4
   # Priority 5: GTest/GMock
   - Regex: '^<(gtest|gmock)/'

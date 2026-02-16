@@ -9,5 +9,6 @@ add_subdirectory(FSM)
 add_subdirectory(Vision)
 add_subdirectory(Strategy)
 add_subdirectory(Pipeline)
+add_subdirectory(App)
 
 add_subdirectory(Sh3DSApp)

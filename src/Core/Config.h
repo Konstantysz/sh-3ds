@@ -5,6 +5,7 @@
 #include <array>
 #include <chrono>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -69,10 +70,11 @@ namespace SH3DS::Core
      */
     struct HardwareConfig
     {
-        CameraConfig camera;                       ///< Camera configuration
-        ConsoleConfig console;                     ///< Console configuration
-        ScreenCalibrationConfig screenCalibration; ///< Screen calibration configuration
-        OrchestratorConfig orchestrator;           ///< Orchestrator configuration
+        CameraConfig camera;                                            ///< Camera configuration
+        ConsoleConfig console;                                          ///< Console configuration
+        ScreenCalibrationConfig screenCalibration;                      ///< Top screen calibration
+        std::optional<ScreenCalibrationConfig> bottomScreenCalibration; ///< Bottom screen calibration (optional)
+        OrchestratorConfig orchestrator;                                ///< Orchestrator configuration
     };
 
     /**

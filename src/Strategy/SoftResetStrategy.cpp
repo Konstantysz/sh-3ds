@@ -1,7 +1,7 @@
 #include "SoftResetStrategy.h"
 
-#include "Kappa/Logger.h"
 #include "Input/InputCommand.h"
+#include "Kappa/Logger.h"
 
 namespace SH3DS::Strategy
 {

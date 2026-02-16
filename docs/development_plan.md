@@ -4,80 +4,57 @@
 
 **Goal:** Validate CV pipeline + FSM offline with recorded frames. TDD from day one.
 
-**Modules:**
-1. Core types (Frame, ROISet, ShinyVerdict, GameState, InputCommand)
-2. Config loading (YAML: hardware, game, hunt, detection)
-3. Logging (spdlog: console + rotating file)
-4. FileFrameSource (read PNGs from directory)
-5. FramePreprocessor (perspective warp + ROI extraction)
-6. ConfigDrivenFSM (string-based states, color/template detection, debounce)
-7. DominantColorDetector + HistogramDetector
-8. MockInputAdapter
-9. SoftResetStrategy
-10. Orchestrator (main loop, watchdog, dry-run)
+**Success criteria:** Full pipeline replays a real captured Pokemon X soft-reset cycle and produces correct FSM transitions + shiny verdicts.
 
-**Success criteria:** Replay tests pass deterministically.
+### Completed
 
-### v0.1.0 Stabilization Tasks
+- [x] Core types, Config loading, Logging (stateless proxy)
+- [x] FileFrameSource, FramePreprocessor, ConfigDrivenFSM
+- [x] DominantColorDetector, HistogramDetector, TemplateMatcher
+- [x] MockInputAdapter, SoftResetStrategy, Orchestrator
+- [x] Unit tests pass on synthetic frames (TestTypes, TestConfig, TestInputEncoding, TestFramePreprocessor, TestFsmTransitions, TestShinyDetector)
+- [x] Integration test scaffolding (TestReplayPipeline) passes on synthetic data
+- [x] `sh3ds.exe --help` works
 
-The codebase was scaffolded in bulk and needs to be stabilized one test at a time.
-Each task = make one test executable pass, commit it with the code it exercises.
-Work in order — each task should fit in a single Claude Code session (~75k tokens).
+### Remaining: Real-Data Validation
 
-**Approach:** For each task, read only the test file and its direct dependencies
-(header + source). Fix compilation and test failures. Commit the working test + code.
-Do not read unrelated files — token budget is tight.
+The unit tests prove the code logic is correct, but v0.1.0 is not "done" until the pipeline runs successfully on **real captured footage** from an actual Pokemon X game.
 
-**Environment note:** ASAN is disabled (`SH3DS_ENABLE_SANITIZERS=OFF` in `CMakePresets.json`).
-Build & run: `cmake --build --preset debug --target <TestName>` then run the `.exe` directly.
+#### Step 1: Capture Replay Data
 
-#### Task 1: TestTypes + TestConfig (DONE)
+Record one full soft-reset cycle from a 3DS running Pokemon X (phone camera or capture card). Extract frames as PNGs into `video_replays/xy_starter_sr/` with sorted filenames (`frame_0001.png`, `frame_0002.png`, …). The sequence should cover:
 
-- **Status:** PASSED (16/16 + 6/6)
-- **Files:** `src/Core/Types.h`, `src/Input/InputCommand.h`, `src/Core/Config.h`, `src/Core/Config.cpp`
-- **Fix applied:** Disabled ASAN in debug preset (DLL not on PATH in Git Bash)
+- Title screen → overworld → encounter → battle sprite visible → soft reset
 
-#### Task 2: TestInputEncoding
+Optionally, also capture a known **shiny** encounter for positive detection validation.
 
-- **Test:** `tests/unit/TestInputEncoding.cpp`
-- **Likely deps:** `src/Input/InputCommand.h`, `src/Input/MockInput.cpp`, `src/Input/InputAdapter.h`
-- **Goal:** Verify 20-byte packet encoding, button bitmask active-low inversion, analog/touch packing
+#### Step 2: Calibrate YAML Configs
 
-#### Task 3: TestFramePreprocessor
+Using the captured frames, tune the following configs to match the actual camera setup:
 
-- **Test:** `tests/unit/TestFramePreprocessor.cpp`
-- **Likely deps:** `src/Capture/FramePreprocessor.h`, `src/Capture/FramePreprocessor.cpp`, `src/Core/Config.h`
-- **Goal:** Verify perspective warp, ROI extraction from synthetic frames
+- `config/hardware.yaml` — screen calibration points (perspective warp corners)
+- `config/games/pokemon_xy.yaml` — ROI coordinates for the actual game layout
+- `config/detection/xy_froakie.yaml` — HSV ranges extracted from real normal/shiny sprites
 
-#### Task 4: TestFsmTransitions
+#### Step 3: Run End-to-End
 
-- **Test:** `tests/unit/TestFsmTransitions.cpp`
-- **Likely deps:** `src/FSM/ConfigDrivenFSM.h`, `src/FSM/ConfigDrivenFSM.cpp`, `src/FSM/GameStateFSM.h`
-- **Goal:** Verify state transitions, debounce logic, timeout/stuck detection
+```bash
+./build/debug/Debug/sh3ds.exe \
+  --hardware config/hardware.yaml \
+  --game config/games/pokemon_xy.yaml \
+  --hunt config/hunts/xy_starter_sr.yaml \
+  --detection config/detection/xy_froakie.yaml
+```
 
-#### Task 5: TestShinyDetector
+Verify the logs show correct FSM state transitions and a `NotShiny` verdict (or `Shiny` if using a shiny recording).
 
-- **Test:** `tests/unit/TestShinyDetector.cpp`
-- **Likely deps:** `src/Vision/ShinyDetector.h`, `src/Vision/DominantColorDetector.cpp`, `src/Vision/HistogramDetector.cpp`
-- **Goal:** Verify HSV-based shiny detection on synthetic colored frames
+#### Step 4: Commit Regression Fixtures
 
-#### Task 6: TestReplayPipeline (integration)
+Add a small representative subset of frames (~10-20) to `tests/fixtures/xy_starter_sr/` and update `TestReplayPipeline` to run against them. This ensures future changes don't break real-data detection.
 
-- **Test:** `tests/integration/TestReplayPipeline.cpp`
-- **Likely deps:** All modules — this is the end-to-end pipeline test
-- **Goal:** Full pipeline: FileFrameSource → Preprocessor → FSM → Detector, all wired together
+#### Step 5: Tag v0.1.0
 
-#### Task 7: Main.cpp (sh3ds executable)
-
-- **Target:** `sh3ds` executable
-- **File:** `src/Main.cpp`
-- **Goal:** CLI parses args, loads configs, wires pipeline, runs orchestrator in dry-run mode
-- **Verify:** `sh3ds --help` works, `sh3ds --dry-run` with valid configs exits cleanly
-
-#### Task 8: Deferred cleanup
-
-- Re-enable ASAN: add DLL copy logic to `cmake/Sanitizers.cmake` for MSVC
-- Run full `ctest --preset debug` with all tests green
+- Run `ctest --preset debug` with all tests green (synthetic + real-data)
 - Tag `v0.1.0`
 
 ---
@@ -87,6 +64,7 @@ Build & run: `cmake --build --preset debug --target <TestName>` then run the `.e
 **Goal:** Connect to Android MJPEG stream, real-time FSM + detection, no input.
 
 **Modules:**
+
 - MjpegFrameSource (reconnection, frame dropping, background thread)
 - FPS monitoring, latency measurement
 
@@ -99,6 +77,7 @@ Build & run: `cmake --build --preset debug --target <TestName>` then run the `.e
 **Goal:** Bot sends inputs and runs SR cycles autonomously.
 
 **Modules:**
+
 - Luma3DSInputAdapter (20-byte UDP packets to port 4950)
 - Full SoftResetStrategy integration
 - Graceful SIGINT shutdown
@@ -112,6 +91,7 @@ Build & run: `cmake --build --preset debug --target <TestName>` then run the `.e
 **Goal:** 10+ hours unattended with reliable detection.
 
 **Modules:**
+
 - Multi-method detection fusion
 - Python scripting (pybind11)
 - Shiny alert (beep, webhook)
