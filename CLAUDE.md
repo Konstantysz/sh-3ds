@@ -67,6 +67,13 @@ FrameSource (abstract) → FramePreprocessor → GameStateFSM (abstract) → Shi
 
 ## Key Constants
 
+3DS screen resolutions are defined in `src/Core/Constants.h`:
+
+- Top screen: 400x240 (5:3), bottom screen: 320x240 (4:3)
+- Use `Core::kTopScreenWidth`, `Core::kBottomScreenAspectRatio`, etc. — never hardcode these values
+
+Hardware constants:
+
 - Luma3DS InputRedirection: UDP port 4950, 20-byte packets, active-low buttons
 - Soft reset combo: `L|R|START = 0x0308`
 - Button bitmask: A=0x001, B=0x002, SELECT=0x004, START=0x008, R=0x100, L=0x200

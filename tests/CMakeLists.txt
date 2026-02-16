@@ -44,6 +44,9 @@ target_link_libraries(TestConfigBottomScreen PRIVATE SH3DS::Core)
 sh3ds_add_test(TestVideoFrameSource unit/TestVideoFrameSource.cpp)
 target_link_libraries(TestVideoFrameSource PRIVATE SH3DS::Capture)
 
+sh3ds_add_test(TestScreenDetector unit/TestScreenDetector.cpp)
+target_link_libraries(TestScreenDetector PRIVATE SH3DS::Capture)
+
 # Integration tests
 sh3ds_add_test(TestReplayPipeline integration/TestReplayPipeline.cpp)
 target_link_libraries(TestReplayPipeline PRIVATE SH3DS::Core SH3DS::Capture SH3DS::FSM SH3DS::Vision)

@@ -7,7 +7,7 @@ cmake-build-*/
 
 # IDE
 .vs/
-.vscode/settings.json
+.vscode/
 .idea/
 *.swp
 *.swo
@@ -35,6 +35,9 @@ __pycache__/
 *.pyo
 .venv/
 venv/
+
+# Local scripts
+scripts/
 
 # Logs and recordings
 logs/

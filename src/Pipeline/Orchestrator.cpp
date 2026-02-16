@@ -8,6 +8,7 @@
 namespace SH3DS::Pipeline
 {
     Orchestrator::Orchestrator(std::unique_ptr<Capture::FrameSource> frameSource,
+        std::unique_ptr<Capture::ScreenDetector> screenDetector,
         std::unique_ptr<Capture::FramePreprocessor> preprocessor,
         std::unique_ptr<FSM::GameStateFSM> fsm,
         std::unique_ptr<Vision::ShinyDetector> detector,
@@ -15,6 +16,7 @@ namespace SH3DS::Pipeline
         std::unique_ptr<Input::InputAdapter> input,
         Core::OrchestratorConfig config)
         : frameSource(std::move(frameSource)),
+          screenDetector(std::move(screenDetector)),
           preprocessor(std::move(preprocessor)),
           fsm(std::move(fsm)),
           detector(std::move(detector)),
@@ -116,6 +118,12 @@ namespace SH3DS::Pipeline
         {
             LOG_TRACE("Orchestrator: frameSource->Grab() returned nullopt (exhausted or timeout).");
             return;
+        }
+
+        // Auto-detect screen corners and update preprocessor
+        if (screenDetector)
+        {
+            screenDetector->ApplyTo(*preprocessor, frame->image);
         }
 
         LOG_DEBUG("Orchestrator: Processing frame #{}...", frame->metadata.sequenceNumber);

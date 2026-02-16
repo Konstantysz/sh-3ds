@@ -20,15 +20,6 @@ namespace
         return cv::Scalar(v0, v1, v2, v3);
     }
 
-    cv::Point2f ParsePoint2f(const YAML::Node &node)
-    {
-        if (!node.IsSequence() || node.size() < 2)
-        {
-            return cv::Point2f(0.0f, 0.0f);
-        }
-        return cv::Point2f(node[0].as<float>(0.0f), node[1].as<float>(0.0f));
-    }
-
 } // namespace
 
 namespace SH3DS::Core
@@ -70,13 +61,6 @@ namespace SH3DS::Core
 
         if (auto calib = root["screen_calibration"])
         {
-            if (auto corners = calib["corners"])
-            {
-                for (size_t i = 0; i < 4 && i < corners.size(); ++i)
-                {
-                    config.screenCalibration.corners[i] = ParsePoint2f(corners[i]);
-                }
-            }
             config.screenCalibration.targetWidth = calib["target_width"].as<int>(config.screenCalibration.targetWidth);
             config.screenCalibration.targetHeight =
                 calib["target_height"].as<int>(config.screenCalibration.targetHeight);
@@ -85,15 +69,8 @@ namespace SH3DS::Core
         if (auto bottomCalib = root["bottom_screen_calibration"])
         {
             ScreenCalibrationConfig bottom;
-            if (auto corners = bottomCalib["corners"])
-            {
-                for (size_t i = 0; i < 4 && i < corners.size(); ++i)
-                {
-                    bottom.corners[i] = ParsePoint2f(corners[i]);
-                }
-            }
-            bottom.targetWidth = bottomCalib["target_width"].as<int>(320);
-            bottom.targetHeight = bottomCalib["target_height"].as<int>(240);
+            bottom.targetWidth = bottomCalib["target_width"].as<int>(kBottomScreenWidth);
+            bottom.targetHeight = bottomCalib["target_height"].as<int>(kBottomScreenHeight);
             config.bottomScreenCalibration = bottom;
         }
 

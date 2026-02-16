@@ -29,11 +29,9 @@ console:
   ip: "127.0.0.1"
   port: 4950
 screen_calibration:
-  corners: [[100, 50], [540, 50], [540, 330], [100, 330]]
   target_width: 400
   target_height: 240
 bottom_screen_calibration:
-  corners: [[120, 220], [520, 220], [520, 420], [120, 420]]
   target_width: 320
   target_height: 240
 orchestrator:
@@ -48,8 +46,6 @@ orchestrator:
     ASSERT_TRUE(config.bottomScreenCalibration.has_value());
     EXPECT_EQ(config.bottomScreenCalibration->targetWidth, 320);
     EXPECT_EQ(config.bottomScreenCalibration->targetHeight, 240);
-    EXPECT_FLOAT_EQ(config.bottomScreenCalibration->corners[0].x, 120.0f);
-    EXPECT_FLOAT_EQ(config.bottomScreenCalibration->corners[0].y, 220.0f);
 
     std::filesystem::remove(path);
 }
@@ -65,7 +61,6 @@ console:
   ip: "127.0.0.1"
   port: 4950
 screen_calibration:
-  corners: [[100, 50], [540, 50], [540, 330], [100, 330]]
   target_width: 400
   target_height: 240
 orchestrator:
@@ -93,11 +88,10 @@ console:
   ip: "127.0.0.1"
   port: 4950
 screen_calibration:
-  corners: [[100, 50], [540, 50], [540, 330], [100, 330]]
   target_width: 400
   target_height: 240
 bottom_screen_calibration:
-  corners: [[120, 220], [520, 220], [520, 420], [120, 420]]
+  target_width: 320
 orchestrator:
   target_fps: 12.0
   watchdog_timeout_s: 120

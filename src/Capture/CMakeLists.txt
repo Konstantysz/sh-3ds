@@ -1,4 +1,4 @@
-add_library(sh3ds_capture STATIC FileFrameSource.cpp FramePreprocessor.cpp VideoFrameSource.cpp)
+add_library(sh3ds_capture STATIC FileFrameSource.cpp FramePreprocessor.cpp ScreenDetector.cpp VideoFrameSource.cpp)
 add_library(SH3DS::Capture ALIAS sh3ds_capture)
 
 target_include_directories(

@@ -1,6 +1,7 @@
 #include "App/SH3DSDebugApp.h"
 #include "Capture/FileFrameSource.h"
 #include "Capture/FramePreprocessor.h"
+#include "Capture/ScreenDetector.h"
 #include "Core/Config.h"
 #include "Core/Types.h"
 #include "FSM/ConfigDrivenFSM.h"
@@ -82,6 +83,8 @@ int main(int argc, char *argv[])
         auto frameSource = SH3DS::Capture::FileFrameSource::CreateFileFrameSource(
             hardwareConfig.camera.uri, hardwareConfig.orchestrator.targetFps);
 
+        auto screenDetector = SH3DS::Capture::ScreenDetector::CreateScreenDetector();
+
         auto preprocessor =
             std::make_unique<SH3DS::Capture::FramePreprocessor>(hardwareConfig.screenCalibration, gameProfile.rois);
 
@@ -98,6 +101,7 @@ int main(int argc, char *argv[])
         auto input = SH3DS::Input::MockInputAdapter::CreateMockInputAdapter();
 
         SH3DS::Pipeline::Orchestrator orchestrator(std::move(frameSource),
+            std::move(screenDetector),
             std::move(preprocessor),
             std::move(fsm),
             std::move(detector),

@@ -11,15 +11,12 @@ console:
   keepalive_interval_ms: 500
 
 screen_calibration:
-  # Calibrated corners for top screen (from calibrate.py)
-  corners: [[422, 124], [857, 122], [849, 380], [428, 379]]
+  # Corners are auto-detected by ScreenDetector — no manual calibration needed
   target_width: 400
   target_height: 240
 
-# Bottom screen calibration (requires manual calibration)
-# Uncomment and set corners when calibrated:
+# Bottom screen target dimensions (corners auto-detected)
 # bottom_screen_calibration:
-#   corners: [[0, 0], [0, 0], [0, 0], [0, 0]]
 #   target_width: 320
 #   target_height: 240
 

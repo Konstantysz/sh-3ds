@@ -3,6 +3,7 @@
 #include "Capture/FramePreprocessor.h"
 #include "Capture/FrameSeeker.h"
 #include "Capture/FrameSource.h"
+#include "Capture/ScreenDetector.h"
 #include "FSM/GameStateFSM.h"
 #include "Kappa/Application.h"
 #include "Vision/ShinyDetector.h"
@@ -38,6 +39,7 @@ namespace SH3DS::App
         {
             std::unique_ptr<Capture::FrameSource> source;             ///< Frame source (streaming)
             std::shared_ptr<Capture::FrameSeeker> seeker = nullptr;   ///< Non-owning seek interface
+            std::unique_ptr<Capture::ScreenDetector> screenDetector;  ///< Automatic screen detection
             std::unique_ptr<Capture::FramePreprocessor> preprocessor; ///< Perspective warp
             std::unique_ptr<FSM::GameStateFSM> fsm;                   ///< Game state FSM
             std::unique_ptr<Vision::ShinyDetector> detector;          ///< Shiny detector (may be null)

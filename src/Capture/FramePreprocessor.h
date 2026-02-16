@@ -59,10 +59,16 @@ namespace SH3DS::Capture
         std::optional<DualScreenResult> ProcessDualScreen(const cv::Mat &cameraFrame) const;
 
         /**
-         * @brief Sets the fixed corners for the screen.
+         * @brief Sets the fixed corners for the top screen.
          * @param corners The fixed corners.
          */
         void SetFixedCorners(std::array<cv::Point2f, 4> corners);
+
+        /**
+         * @brief Sets the fixed corners for the bottom screen.
+         * @param corners The fixed corners.
+         */
+        void SetBottomCorners(std::array<cv::Point2f, 4> corners);
 
     private:
         /**

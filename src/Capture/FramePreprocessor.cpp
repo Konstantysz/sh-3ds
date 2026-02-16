@@ -1,5 +1,6 @@
 #include "FramePreprocessor.h"
 
+#include "Core/Constants.h"
 #include "Kappa/Logger.h"
 
 #include <opencv2/imgproc.hpp>
@@ -9,12 +10,34 @@
 
 namespace SH3DS::Capture
 {
+    static bool AreCornersDegenerate(const std::array<cv::Point2f, 4> &c)
+    {
+        return (c[0] == c[1] && c[1] == c[2] && c[2] == c[3]);
+    }
+
+    static bool CornersEqual(const std::array<cv::Point2f, 4> &a,
+        const std::array<cv::Point2f, 4> &b,
+        float epsilon = 0.01f)
+    {
+        for (int i = 0; i < 4; ++i)
+        {
+            if (std::abs(a[i].x - b[i].x) > epsilon || std::abs(a[i].y - b[i].y) > epsilon)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     FramePreprocessor::FramePreprocessor(Core::ScreenCalibrationConfig calibration,
         std::vector<Core::RoiDefinition> roiDefs)
         : calibration(std::move(calibration)),
           roiDefs(std::move(roiDefs))
     {
-        RecalculateWarpMatrix();
+        if (!AreCornersDegenerate(this->calibration.corners))
+        {
+            RecalculateWarpMatrix();
+        }
     }
 
     FramePreprocessor::FramePreprocessor(Core::ScreenCalibrationConfig calibration,
@@ -24,12 +47,13 @@ namespace SH3DS::Capture
           roiDefs(std::move(roiDefs)),
           bottomCalibration(std::move(bottomCalibration))
     {
-        RecalculateWarpMatrix();
+        if (!AreCornersDegenerate(this->calibration.corners))
+        {
+            RecalculateWarpMatrix();
+        }
         if (this->bottomCalibration)
         {
-            auto &c = this->bottomCalibration->corners;
-            bool degenerate = (c[0] == c[1] && c[1] == c[2] && c[2] == c[3]);
-            if (degenerate)
+            if (AreCornersDegenerate(this->bottomCalibration->corners))
             {
                 LOG_WARN("Bottom screen calibration has degenerate corners — disabling");
                 this->bottomCalibration = std::nullopt;
@@ -111,8 +135,29 @@ namespace SH3DS::Capture
 
     void FramePreprocessor::SetFixedCorners(std::array<cv::Point2f, 4> corners)
     {
+        if (CornersEqual(calibration.corners, corners))
+        {
+            return;
+        }
         calibration.corners = corners;
         RecalculateWarpMatrix();
+    }
+
+    void FramePreprocessor::SetBottomCorners(std::array<cv::Point2f, 4> corners)
+    {
+        if (bottomCalibration && CornersEqual(bottomCalibration->corners, corners))
+        {
+            return;
+        }
+        if (!bottomCalibration)
+        {
+            Core::ScreenCalibrationConfig bottom;
+            bottom.targetWidth = Core::kBottomScreenWidth;
+            bottom.targetHeight = Core::kBottomScreenHeight;
+            bottomCalibration = bottom;
+        }
+        bottomCalibration->corners = corners;
+        bottomWarpMatrix = CalculateWarpMatrix(*bottomCalibration);
     }
 
     void FramePreprocessor::RecalculateWarpMatrix()

@@ -25,6 +25,7 @@ namespace SH3DS::App
         PushLayer<DebugLayer>(windowHandle,
             std::move(pipeline.source),
             pipeline.seeker,
+            std::move(pipeline.screenDetector),
             std::move(pipeline.preprocessor),
             std::move(pipeline.fsm),
             std::move(pipeline.detector),
@@ -71,7 +72,10 @@ namespace SH3DS::App
             pipeline.source = std::move(videoSource);
         }
 
-        // Create preprocessor with optional bottom screen
+        // Create screen detector for automatic corner detection
+        pipeline.screenDetector = Capture::ScreenDetector::CreateScreenDetector();
+
+        // Create preprocessor with optional bottom screen (corners set by ScreenDetector)
         pipeline.preprocessor = std::make_unique<Capture::FramePreprocessor>(
             hardwareConfig.screenCalibration, gameProfile.rois, hardwareConfig.bottomScreenCalibration);
 

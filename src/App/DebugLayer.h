@@ -3,6 +3,8 @@
 #include "Capture/FramePreprocessor.h"
 #include "Capture/FrameSeeker.h"
 #include "Capture/FrameSource.h"
+#include "Capture/ScreenDetector.h"
+#include "Core/Constants.h"
 #include "Core/Types.h"
 #include "FSM/GameStateFSM.h"
 #include "Kappa/Layer.h"
@@ -40,6 +42,7 @@ namespace SH3DS::App
         DebugLayer(GLFWwindow *window,
             std::unique_ptr<Capture::FrameSource> source,
             std::shared_ptr<Capture::FrameSeeker> seeker,
+            std::unique_ptr<Capture::ScreenDetector> screenDetector,
             std::unique_ptr<Capture::FramePreprocessor> preprocessor,
             std::unique_ptr<FSM::GameStateFSM> fsm,
             std::unique_ptr<Vision::ShinyDetector> detector,
@@ -79,6 +82,7 @@ namespace SH3DS::App
         // Pipeline components
         std::unique_ptr<Capture::FrameSource> source;             ///< Frame source (streaming)
         std::shared_ptr<Capture::FrameSeeker> seeker = nullptr;   ///< Non-owning seek interface
+        std::unique_ptr<Capture::ScreenDetector> screenDetector;  ///< Automatic screen detection
         std::unique_ptr<Capture::FramePreprocessor> preprocessor; ///< Perspective warp
         std::unique_ptr<FSM::GameStateFSM> fsm;                   ///< Game state FSM
         std::unique_ptr<Vision::ShinyDetector> detector;          ///< Shiny detector
@@ -105,9 +109,9 @@ namespace SH3DS::App
         // Frame dimensions (for display)
         int rawWidth = 0;       ///< Raw frame width
         int rawHeight = 0;      ///< Raw frame height
-        int topWidth = 400;     ///< Top screen width
-        int topHeight = 240;    ///< Top screen height
-        int bottomWidth = 320;  ///< Bottom screen width
-        int bottomHeight = 240; ///< Bottom screen height
+        int topWidth = Core::kTopScreenWidth;        ///< Top screen width
+        int topHeight = Core::kTopScreenHeight;      ///< Top screen height
+        int bottomWidth = Core::kBottomScreenWidth;   ///< Bottom screen width
+        int bottomHeight = Core::kBottomScreenHeight; ///< Bottom screen height
     };
 } // namespace SH3DS::App

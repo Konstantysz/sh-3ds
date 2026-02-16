@@ -69,11 +69,6 @@ console:
   default_release_ms: 100
   keepalive_interval_ms: 600
 screen_calibration:
-  corners:
-    - [85, 42]
-    - [555, 38]
-    - [560, 320]
-    - [80, 325]
   target_width: 400
   target_height: 240
 orchestrator:
@@ -102,9 +97,6 @@ orchestrator:
     EXPECT_EQ(config.console.defaultHoldMs, 150);
     EXPECT_EQ(config.console.defaultReleaseMs, 100);
 
-    EXPECT_FLOAT_EQ(config.screenCalibration.corners[0].x, 85.0f);
-    EXPECT_FLOAT_EQ(config.screenCalibration.corners[0].y, 42.0f);
-    EXPECT_FLOAT_EQ(config.screenCalibration.corners[1].x, 555.0f);
     EXPECT_EQ(config.screenCalibration.targetWidth, 400);
     EXPECT_EQ(config.screenCalibration.targetHeight, 240);
 

@@ -13,6 +13,7 @@ namespace SH3DS::App
     DebugLayer::DebugLayer(GLFWwindow *window,
         std::unique_ptr<Capture::FrameSource> source,
         std::shared_ptr<Capture::FrameSeeker> seeker,
+        std::unique_ptr<Capture::ScreenDetector> screenDetector,
         std::unique_ptr<Capture::FramePreprocessor> preprocessor,
         std::unique_ptr<FSM::GameStateFSM> fsm,
         std::unique_ptr<Vision::ShinyDetector> detector,
@@ -20,6 +21,7 @@ namespace SH3DS::App
         float targetFps)
         : source(std::move(source)),
           seeker(seeker),
+          screenDetector(std::move(screenDetector)),
           preprocessor(std::move(preprocessor)),
           fsm(std::move(fsm)),
           detector(std::move(detector)),
@@ -147,6 +149,12 @@ namespace SH3DS::App
 
         // Upload raw frame texture
         TextureUploader::Upload(currentRawFrame, rawFrameTexture);
+
+        // Auto-detect screen corners and update preprocessor
+        if (screenDetector)
+        {
+            screenDetector->ApplyTo(*preprocessor, frame->image);
+        }
 
         // Process through preprocessor
         auto dualResult = preprocessor->ProcessDualScreen(frame->image);

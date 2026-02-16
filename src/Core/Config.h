@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Constants.h"
+
 #include <opencv2/core.hpp>
 
 #include <array>
@@ -43,10 +45,11 @@ namespace SH3DS::Core
      */
     struct ScreenCalibrationConfig
     {
-        std::array<cv::Point2f, 4> corners = {}; ///< Four corners of the screen in source image coordinates (top-left,
-                                                 ///< top-right, bottom-right, bottom-left)
-        int targetWidth = 400;                   ///< Target width for warped image
-        int targetHeight = 240;                  ///< Target height for warped image
+        std::array<cv::Point2f, 4> corners = {}; ///< Four corners of the screen in source image coordinates
+                                                 ///< (TL, TR, BR, BL). Defaults to all-zero; populated at
+                                                 ///< runtime by ScreenDetector auto-calibration.
+        int targetWidth = kTopScreenWidth;       ///< Target width for warped image
+        int targetHeight = kTopScreenHeight;     ///< Target height for warped image
     };
 
     /**

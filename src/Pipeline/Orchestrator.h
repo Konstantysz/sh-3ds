@@ -2,6 +2,7 @@
 
 #include "Capture/FramePreprocessor.h"
 #include "Capture/FrameSource.h"
+#include "Capture/ScreenDetector.h"
 #include "Core/Config.h"
 #include "Core/Types.h"
 #include "FSM/GameStateFSM.h"
@@ -23,6 +24,7 @@ namespace SH3DS::Pipeline
         /**
          * @brief Constructs the orchestrator with all pipeline components.
          * @param frameSource Frame acquisition source.
+         * @param screenDetector Automatic screen corner detection.
          * @param preprocessor Perspective warp and ROI extraction.
          * @param fsm Game state tracking FSM.
          * @param detector Shiny detection engine.
@@ -31,6 +33,7 @@ namespace SH3DS::Pipeline
          * @param config Runtime configuration (FPS, watchdog, dry-run).
          */
         Orchestrator(std::unique_ptr<Capture::FrameSource> frameSource,
+            std::unique_ptr<Capture::ScreenDetector> screenDetector,
             std::unique_ptr<Capture::FramePreprocessor> preprocessor,
             std::unique_ptr<FSM::GameStateFSM> fsm,
             std::unique_ptr<Vision::ShinyDetector> detector,
@@ -71,8 +74,9 @@ namespace SH3DS::Pipeline
          */
         void ExecuteDecision(const Strategy::StrategyDecision &strategyDecision);
 
-        std::unique_ptr<Capture::FrameSource> frameSource;        ///< Frame acquisition source
-        std::unique_ptr<Capture::FramePreprocessor> preprocessor; ///< Perspective warp and ROI extraction
+        std::unique_ptr<Capture::FrameSource> frameSource;          ///< Frame acquisition source
+        std::unique_ptr<Capture::ScreenDetector> screenDetector;   ///< Automatic screen corner detection
+        std::unique_ptr<Capture::FramePreprocessor> preprocessor;  ///< Perspective warp and ROI extraction
         std::unique_ptr<FSM::GameStateFSM> fsm;                   ///< Game state tracking FSM
         std::unique_ptr<Vision::ShinyDetector> detector;          ///< Shiny detection engine
         std::unique_ptr<Strategy::HuntStrategy> strategy;         ///< Hunt strategy
