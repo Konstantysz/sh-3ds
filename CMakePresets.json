@@ -7,8 +7,14 @@
     },
     "configurePresets": [
         {
-            "name": "vcpkg-base",
+            "name": "base",
             "hidden": true,
+            "binaryDir": "${sourceDir}/build/${presetName}"
+        },
+        {
+            "name": "native-base",
+            "hidden": true,
+            "inherits": "base",
             "cacheVariables": {
                 "CMAKE_TOOLCHAIN_FILE": {
                     "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
@@ -17,20 +23,44 @@
             }
         },
         {
-            "name": "debug",
-            "displayName": "Debug",
-            "inherits": "vcpkg-base",
-            "binaryDir": "${sourceDir}/build/debug",
+            "name": "single-config-base",
+            "hidden": true,
+            "inherits": "native-base",
+            "generator": "Ninja"
+        },
+        {
+            "name": "multi-config-base",
+            "hidden": true,
+            "inherits": "native-base",
+            "generator": "Visual Studio 17 2022",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "ninja-debug",
+            "displayName": "Ninja Debug",
+            "inherits": "single-config-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "SH3DS_ENABLE_SANITIZERS": "OFF"
             }
         },
         {
-            "name": "release",
-            "displayName": "Release",
-            "inherits": "vcpkg-base",
-            "binaryDir": "${sourceDir}/build/release",
+            "name": "ninja-debug-asan",
+            "displayName": "Ninja Debug (ASan/UBSan)",
+            "inherits": "single-config-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "SH3DS_ENABLE_SANITIZERS": "ON"
+            }
+        },
+        {
+            "name": "ninja-release",
+            "displayName": "Ninja Release",
+            "inherits": "single-config-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
@@ -38,29 +68,66 @@
         {
             "name": "rpi-cross",
             "displayName": "Raspberry Pi Cross-Compile",
-            "inherits": "vcpkg-base",
-            "binaryDir": "${sourceDir}/build/rpi",
-            "toolchainFile": "${sourceDir}/cmake/CrossCompile-RPi.cmake",
+            "inherits": "single-config-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/CrossCompile-RPi.cmake",
                 "VCPKG_TARGET_TRIPLET": "arm64-linux"
             }
+        },
+        {
+            "name": "visual-studio",
+            "displayName": "Visual Studio",
+            "inherits": "multi-config-base"
         }
     ],
     "buildPresets": [
         {
-            "name": "debug",
-            "configurePreset": "debug"
+            "name": "ninja-debug",
+            "configurePreset": "ninja-debug"
         },
         {
-            "name": "release",
-            "configurePreset": "release"
+            "name": "ninja-debug-asan",
+            "configurePreset": "ninja-debug-asan"
+        },
+        {
+            "name": "ninja-release",
+            "configurePreset": "ninja-release"
+        },
+        {
+            "name": "rpi-cross",
+            "configurePreset": "rpi-cross"
+        },
+        {
+            "name": "visual-studio-debug",
+            "configurePreset": "visual-studio",
+            "configuration": "Debug"
+        },
+        {
+            "name": "visual-studio-release",
+            "configurePreset": "visual-studio",
+            "configuration": "Release"
         }
     ],
     "testPresets": [
         {
-            "name": "debug",
-            "configurePreset": "debug",
+            "name": "ninja-debug",
+            "configurePreset": "ninja-debug",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "ninja-debug-asan",
+            "configurePreset": "ninja-debug-asan",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "visual-studio-debug",
+            "configurePreset": "visual-studio",
+            "configuration": "Debug",
             "output": {
                 "outputOnFailure": true
             }
