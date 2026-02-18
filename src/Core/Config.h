@@ -121,7 +121,7 @@ namespace SH3DS::Core
     };
 
     /**
-     * @brief Game profile (loaded from games/*.yaml).
+     * @brief Game profile (loaded from games/&lt;game&gt;.yaml).
      */
     struct GameProfile
     {
@@ -166,32 +166,12 @@ namespace SH3DS::Core
     };
 
     /**
-     * @brief Hunt strategy configuration (loaded from hunts/*.yaml).
-     */
-    struct HuntConfig
-    {
-        std::string huntId;                                      ///< Unique identifier for the hunt
-        std::string huntName;                                    ///< Name of the hunt
-        std::string game;                                        ///< Game for which the hunt is defined
-        std::string method;                                      ///< Method used for the hunt
-        std::string targetPokemon;                               ///< Target Pokémon for the hunt
-        std::string detectionProfile;                            ///< Detection profile to use for the hunt
-        std::map<std::string, std::vector<InputAction>> actions; ///< Map of actions to perform
-        std::string shinyCheckState;                             ///< State to check for shiny
-        int shinyCheckFrames = 15;                               ///< Number of frames to check for shiny
-        int shinyCheckDelayMs = 1500;                            ///< Delay before checking for shiny
-        std::string onShinyAction = "stop";                      ///< Action to take on shiny found
-        AlertConfig alert;                                       ///< Alert configuration
-        RecoveryPolicy onStuck;                                  ///< Recovery policy for stuck state
-        RecoveryPolicy onDetectionFailure;                       ///< Recovery policy for detection failure
-    };
-
-    /**
      * @brief Single detection method configuration.
      */
     struct DetectionMethodConfig
     {
         std::string method;                        ///< Detection method
+        std::string roi;                           ///< ROI name to run detection on
         double weight = 1.0;                       ///< Weight for this detection method
         cv::Scalar normalHsvLower;                 ///< Lower HSV bounds for normal detection
         cv::Scalar normalHsvUpper;                 ///< Upper HSV bounds for normal detection
@@ -219,7 +199,7 @@ namespace SH3DS::Core
     };
 
     /**
-     * @brief Detection profile (loaded from detection/*.yaml).
+     * @brief Detection profile (loaded from detection/&lt;profile&gt;.yaml).
      */
     struct DetectionProfile
     {
@@ -228,6 +208,87 @@ namespace SH3DS::Core
         std::string pokemon;                        ///< Pokémon for which the detection profile is defined
         std::vector<DetectionMethodConfig> methods; ///< List of detection methods
         FusionConfig fusion;                        ///< Fusion configuration for multi-method detection
+    };
+
+    /**
+     * @brief Hunt strategy configuration (loaded from hunts/&lt;hunt&gt;.yaml).
+     */
+    struct HuntConfig
+    {
+        std::string huntId;                                      ///< Unique identifier for the hunt
+        std::string huntName;                                    ///< Name of the hunt
+        std::string game;                                        ///< Game for which the hunt is defined
+        std::string method;                                      ///< Method used for the hunt
+        std::string targetPokemon;                               ///< Target Pokémon for the hunt
+        std::string detectionProfile;                            ///< Detection profile to use for the hunt
+        std::map<std::string, std::vector<InputAction>> actions; ///< Map of actions to perform
+        std::string shinyCheckState;                             ///< State to check for shiny
+        int shinyCheckFrames = 15;                               ///< Number of frames to check for shiny
+        int shinyCheckDelayMs = 1500;                            ///< Delay before checking for shiny
+        std::string onShinyAction = "stop";                      ///< Action to take on shiny found
+        AlertConfig alert;                                       ///< Alert configuration
+        RecoveryPolicy onStuck;                                  ///< Recovery policy for stuck state
+        RecoveryPolicy onDetectionFailure;                       ///< Recovery policy for detection failure
+    };
+
+    /**
+     * @brief Per-state detection parameters loaded from YAML for tuning.
+     */
+    struct StateDetectionParams
+    {
+        std::string roi;            ///< Name of the ROI to analyze
+        std::string method;         ///< Detection method: "color_histogram" or "template_match"
+        cv::Scalar hsvLower;        ///< Lower HSV bounds
+        cv::Scalar hsvUpper;        ///< Upper HSV bounds
+        double pixelRatioMin = 0.0; ///< Minimum pixel ratio
+        double pixelRatioMax = 1.0; ///< Maximum pixel ratio
+        double threshold = 0.7;     ///< Confidence threshold
+        std::string templatePath;   ///< Path to template image (for template_match)
+    };
+
+    /**
+     * @brief Detection parameters for a complete hunt, keyed by state ID.
+     */
+    struct HuntDetectionParams
+    {
+        std::map<std::string, StateDetectionParams> stateParams; ///< Detection params per state
+        int debounceFrames = 3;                                   ///< Frame debounce count
+    };
+
+    /**
+     * @brief All configuration needed to run a single hunt, loaded from one YAML file.
+     *
+     * Replaces the old combination of game profile + hunt config + detection profile
+     * + detection params. Hardware (camera, console, screen warp) stays in hardware.yaml.
+     */
+    struct UnifiedHuntConfig
+    {
+        // Identity
+        std::string huntId;        ///< Unique identifier for this hunt config
+        std::string huntName;      ///< Human-readable name
+        std::string targetPokemon; ///< Target Pokémon
+
+        // ROIs (fed to FramePreprocessor)
+        std::vector<RoiDefinition> rois; ///< Named regions of interest
+
+        // FSM detection params (fed to HuntProfiles factory)
+        HuntDetectionParams fsmParams; ///< Per-state HSV/threshold params + debounce
+
+        // Shiny detector params
+        DetectionMethodConfig shinyDetector; ///< Dominant-color or histogram detector config
+        FusionConfig fusion;                 ///< Fusion thresholds for multi-method
+
+        // Input actions per state
+        std::map<std::string, std::vector<InputAction>> actions; ///< Buttons to press on each state
+
+        // Hunt behaviour
+        std::string shinyCheckState;        ///< State that triggers shiny detection
+        int shinyCheckFrames = 15;          ///< Frames to sample during shiny check
+        int shinyCheckDelayMs = 1500;       ///< Delay before sampling
+        std::string onShinyAction = "stop"; ///< "stop" or "continue"
+        AlertConfig alert;                  ///< Alert settings
+        RecoveryPolicy onStuck;             ///< Stuck-state recovery policy
+        RecoveryPolicy onDetectionFailure;  ///< Detection-failure recovery policy
     };
 
     /**
@@ -257,4 +318,26 @@ namespace SH3DS::Core
      * @return Detection profile.
      */
     DetectionProfile LoadDetectionProfile(const std::string &path);
+
+    /**
+     * @brief Load hunt detection parameters from YAML file.
+     * @param path Path to the detection parameters file.
+     * @return Hunt detection parameters.
+     */
+    HuntDetectionParams LoadHuntDetectionParams(const std::string &path);
+
+    /**
+     * @brief Load a unified hunt configuration from a single YAML file.
+     * @param path Path to the hunt config file.
+     * @return Unified hunt configuration.
+     */
+    UnifiedHuntConfig LoadUnifiedHuntConfig(const std::string &path);
+
+    /**
+     * @brief Extract a HuntConfig from a UnifiedHuntConfig (for SoftResetStrategy compatibility).
+     * @param unified Source unified config.
+     * @return HuntConfig with actions, recovery policy, and behaviour fields populated.
+     */
+    HuntConfig ToHuntConfig(const UnifiedHuntConfig &unified);
+
 } // namespace SH3DS::Core

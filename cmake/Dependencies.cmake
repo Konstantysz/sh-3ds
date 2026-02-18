@@ -21,3 +21,13 @@ if(NOT EXISTS "${PROJECT_SOURCE_DIR}/external/kappa-core/CMakeLists.txt")
 else()
     add_subdirectory(external/kappa-core)
 endif()
+
+# Verify CXXStateTree submodule exists
+if(NOT EXISTS "${PROJECT_SOURCE_DIR}/external/CXXStateTree/CMakeLists.txt")
+    message(FATAL_ERROR "CXXStateTree submodule not found. Run: git submodule update --init --recursive")
+else()
+    set(STATIC_LIB ON CACHE BOOL "Build CXXStateTree as static library" FORCE)
+    set(ENABLE_TEST OFF CACHE BOOL "Disable CXXStateTree tests" FORCE)
+    set(ENABLE_EXAMPLE OFF CACHE BOOL "Disable CXXStateTree examples" FORCE)
+    add_subdirectory(external/CXXStateTree)
+endif()

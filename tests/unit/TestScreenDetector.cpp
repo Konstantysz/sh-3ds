@@ -174,7 +174,7 @@ TEST(ScreenDetector, TemporalSmoothingReducesJitter)
     auto &prev = detectedCorners[detectedCorners.size() - 2];
 
     float maxDelta = 0.0f;
-    for (int j = 0; j < 4; ++j)
+    for (size_t j = 0; j < 4; ++j)
     {
         maxDelta = std::max(maxDelta, std::abs(last[j].x - prev[j].x));
         maxDelta = std::max(maxDelta, std::abs(last[j].y - prev[j].y));

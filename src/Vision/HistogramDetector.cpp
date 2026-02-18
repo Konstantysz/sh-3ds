@@ -20,7 +20,7 @@ namespace SH3DS::Vision
     {
         if (pokemonRoi.empty())
         {
-            return { .verdict = Core::ShinyVerdict::Uncertain, .confidence = 0.0, .method = "histogram_compare" };
+            return { .verdict = Core::ShinyVerdict::Uncertain, .confidence = 0.0, .method = "histogram_compare", .details = {}, .debugImage = {} };
         }
 
         // Load references lazily
@@ -44,7 +44,8 @@ namespace SH3DS::Vision
             return { .verdict = Core::ShinyVerdict::Uncertain,
                 .confidence = 0.0,
                 .method = "histogram_compare",
-                .details = "missing reference histograms" };
+                .details = "missing reference histograms",
+            .debugImage = {} };
         }
 
         int method = cv::HISTCMP_CORREL;
@@ -82,6 +83,7 @@ namespace SH3DS::Vision
                 .confidence = std::min(differential / config.differentialThreshold, 1.0),
                 .method = "histogram_compare",
                 .details = details,
+                .debugImage = {},
             };
         }
 
@@ -92,6 +94,7 @@ namespace SH3DS::Vision
                 .confidence = std::min(-differential / config.differentialThreshold, 1.0),
                 .method = "histogram_compare",
                 .details = details,
+                .debugImage = {},
             };
         }
 
@@ -100,6 +103,7 @@ namespace SH3DS::Vision
             .confidence = 0.0,
             .method = "histogram_compare",
             .details = details,
+            .debugImage = {},
         };
     }
 
@@ -107,7 +111,7 @@ namespace SH3DS::Vision
     {
         if (rois.empty())
         {
-            return { .verdict = Core::ShinyVerdict::Uncertain, .confidence = 0.0, .method = "histogram_compare" };
+            return { .verdict = Core::ShinyVerdict::Uncertain, .confidence = 0.0, .method = "histogram_compare", .details = {}, .debugImage = {} };
         }
 
         std::map<Core::ShinyVerdict, int> votes;
@@ -136,7 +140,8 @@ namespace SH3DS::Vision
             .confidence = totalConfidence[winner] / static_cast<double>(maxVotes),
             .method = "histogram_compare",
             .details =
-                "sequence_majority_vote: count=" + std::to_string(maxVotes) + "/" + std::to_string(rois.size()) };
+                "sequence_majority_vote: count=" + std::to_string(maxVotes) + "/" + std::to_string(rois.size()),
+            .debugImage = {} };
     }
 
     std::string HistogramDetector::ProfileId() const

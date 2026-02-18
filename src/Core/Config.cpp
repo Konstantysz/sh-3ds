@@ -1,5 +1,7 @@
 #include "Config.h"
 
+#include "Kappa/Logger.h"
+
 #include <yaml-cpp/yaml.h>
 
 #include <fstream>
@@ -11,6 +13,11 @@ namespace
     {
         if (!node.IsSequence() || node.size() < 3)
         {
+            if (node.IsDefined() && !node.IsNull())
+            {
+                LOG_WARN("Config: expected HSV scalar sequence [h,s,v] but got '{}' — using (0,0,0)",
+                    node.IsScalar() ? node.Scalar() : "<non-scalar>");
+            }
             return cv::Scalar(0, 0, 0);
         }
         double v0 = node[0].as<double>(0.0);
@@ -24,6 +31,35 @@ namespace
 
 namespace SH3DS::Core
 {
+    namespace
+    {
+        void ValidateStateDetectionParams(StateDetectionParams &sp, const std::string &stateId)
+        {
+            if (sp.pixelRatioMin > sp.pixelRatioMax)
+            {
+                LOG_WARN("Config: state '{}' has pixelRatioMin ({:.3f}) > pixelRatioMax ({:.3f}) — swapping",
+                    stateId,
+                    sp.pixelRatioMin,
+                    sp.pixelRatioMax);
+                std::swap(sp.pixelRatioMin, sp.pixelRatioMax);
+            }
+            if (sp.threshold <= 0.0 || sp.threshold > 1.0)
+            {
+                LOG_WARN("Config: state '{}' threshold ({:.3f}) is outside (0,1] — clamping to 0.5",
+                    stateId, sp.threshold);
+                sp.threshold = 0.5;
+            }
+            for (int ch = 0; ch < 3; ++ch)
+            {
+                if (sp.hsvLower[ch] > sp.hsvUpper[ch])
+                {
+                    LOG_WARN("Config: state '{}' HSV channel {} is inverted — swapping", stateId, ch);
+                    std::swap(sp.hsvLower[ch], sp.hsvUpper[ch]);
+                }
+            }
+        }
+    } // namespace
+
     HardwareConfig LoadHardwareConfig(const std::string &path)
     {
         YAML::Node root;
@@ -175,6 +211,58 @@ namespace SH3DS::Core
         return profile;
     }
 
+    HuntDetectionParams LoadHuntDetectionParams(const std::string &path)
+    {
+        YAML::Node root;
+        try
+        {
+            root = YAML::LoadFile(path);
+        }
+        catch (const YAML::Exception &e)
+        {
+            throw std::runtime_error("Failed to load hunt detection params: " + std::string(e.what()));
+        }
+
+        HuntDetectionParams params;
+        params.debounceFrames = root["debounce_frames"].as<int>(3);
+        if (params.debounceFrames < 1)
+        {
+            LOG_WARN("Config: debounce_frames ({}) < 1 — clamping to 1", params.debounceFrames);
+            params.debounceFrames = 1;
+        }
+
+        if (auto states = root["states"])
+        {
+            for (auto it = states.begin(); it != states.end(); ++it)
+            {
+                std::string stateId = it->first.as<std::string>();
+                auto node = it->second;
+
+                StateDetectionParams sp;
+                sp.method = node["method"].as<std::string>("");
+                sp.roi = node["roi"].as<std::string>("");
+                sp.templatePath = node["template_path"].as<std::string>("");
+                sp.threshold = node["threshold"].as<double>(0.7);
+                sp.pixelRatioMin = node["pixel_ratio_min"].as<double>(0.0);
+                sp.pixelRatioMax = node["pixel_ratio_max"].as<double>(1.0);
+
+                if (node["hsv_lower"])
+                {
+                    sp.hsvLower = ParseScalar(node["hsv_lower"]);
+                }
+                if (node["hsv_upper"])
+                {
+                    sp.hsvUpper = ParseScalar(node["hsv_upper"]);
+                }
+
+                ValidateStateDetectionParams(sp, stateId);
+                params.stateParams[stateId] = sp;
+            }
+        }
+
+        return params;
+    }
+
     HuntConfig LoadHuntConfig(const std::string &path)
     {
         YAML::Node root;
@@ -252,6 +340,195 @@ namespace SH3DS::Core
             }
         }
 
+        return config;
+    }
+
+    UnifiedHuntConfig LoadUnifiedHuntConfig(const std::string &path)
+    {
+        YAML::Node root;
+        try
+        {
+            root = YAML::LoadFile(path);
+        }
+        catch (const YAML::Exception &e)
+        {
+            throw std::runtime_error("Failed to load unified hunt config: " + std::string(e.what()));
+        }
+
+        UnifiedHuntConfig config;
+
+        // Identity
+        config.huntId = root["hunt_id"].as<std::string>("");
+        config.huntName = root["hunt_name"].as<std::string>("");
+        config.targetPokemon = root["target_pokemon"].as<std::string>("");
+
+        // ROIs
+        if (auto rois = root["rois"])
+        {
+            for (const auto &roiNode : rois)
+            {
+                RoiDefinition roi;
+                roi.name = roiNode["name"].as<std::string>("");
+                roi.x = roiNode["x"].as<double>(0.0);
+                roi.y = roiNode["y"].as<double>(0.0);
+                roi.w = roiNode["w"].as<double>(0.0);
+                roi.h = roiNode["h"].as<double>(0.0);
+                config.rois.push_back(roi);
+            }
+        }
+
+        // FSM detection params
+        config.fsmParams.debounceFrames = root["debounce_frames"].as<int>(3);
+        if (config.fsmParams.debounceFrames < 1)
+        {
+            LOG_WARN("Config: debounce_frames ({}) < 1 — clamping to 1", config.fsmParams.debounceFrames);
+            config.fsmParams.debounceFrames = 1;
+        }
+        if (auto states = root["fsm_states"])
+        {
+            for (auto it = states.begin(); it != states.end(); ++it)
+            {
+                std::string stateId = it->first.as<std::string>();
+                auto node = it->second;
+
+                StateDetectionParams sp;
+                sp.method = node["method"].as<std::string>("");
+                sp.roi = node["roi"].as<std::string>("");
+                sp.templatePath = node["template_path"].as<std::string>("");
+                sp.threshold = node["threshold"].as<double>(0.7);
+                sp.pixelRatioMin = node["pixel_ratio_min"].as<double>(0.0);
+                sp.pixelRatioMax = node["pixel_ratio_max"].as<double>(1.0);
+
+                if (node["hsv_lower"])
+                {
+                    sp.hsvLower = ParseScalar(node["hsv_lower"]);
+                }
+                if (node["hsv_upper"])
+                {
+                    sp.hsvUpper = ParseScalar(node["hsv_upper"]);
+                }
+
+                ValidateStateDetectionParams(sp, stateId);
+                config.fsmParams.stateParams[stateId] = sp;
+            }
+        }
+
+        // Shiny detector (single method)
+        if (auto det = root["shiny_detector"])
+        {
+            config.shinyDetector.method = det["method"].as<std::string>("");
+            config.shinyDetector.roi = det["roi"].as<std::string>("");
+            config.shinyDetector.weight = det["weight"].as<double>(1.0);
+
+            if (det["normal_hsv_lower"])
+            {
+                config.shinyDetector.normalHsvLower = ParseScalar(det["normal_hsv_lower"]);
+            }
+            if (det["normal_hsv_upper"])
+            {
+                config.shinyDetector.normalHsvUpper = ParseScalar(det["normal_hsv_upper"]);
+            }
+            if (det["shiny_hsv_lower"])
+            {
+                config.shinyDetector.shinyHsvLower = ParseScalar(det["shiny_hsv_lower"]);
+            }
+            if (det["shiny_hsv_upper"])
+            {
+                config.shinyDetector.shinyHsvUpper = ParseScalar(det["shiny_hsv_upper"]);
+            }
+            config.shinyDetector.shinyRatioThreshold = det["shiny_ratio_threshold"].as<double>(0.12);
+            config.shinyDetector.normalRatioThreshold = det["normal_ratio_threshold"].as<double>(0.12);
+
+            config.shinyDetector.referenceNormal = det["reference_normal"].as<std::string>("");
+            config.shinyDetector.referenceShiny = det["reference_shiny"].as<std::string>("");
+            config.shinyDetector.compareMethod = det["compare_method"].as<std::string>("correlation");
+            config.shinyDetector.differentialThreshold = det["differential_threshold"].as<double>(0.15);
+            config.shinyDetector.sparkleRoi = det["sparkle_roi"].as<std::string>("sparkle_region");
+            config.shinyDetector.brightnessThreshold = det["brightness_threshold"].as<int>(240);
+            config.shinyDetector.minBrightPixelRatio = det["min_bright_pixel_ratio"].as<double>(0.005);
+            config.shinyDetector.minConsecutiveFrames = det["min_consecutive_frames"].as<int>(3);
+        }
+
+        // Fusion
+        if (auto fusion = root["fusion"])
+        {
+            config.fusion.shinyThreshold = fusion["shiny_threshold"].as<double>(0.55);
+            config.fusion.uncertainThreshold = fusion["uncertain_threshold"].as<double>(0.35);
+        }
+
+        // Input actions per state
+        if (auto actions = root["actions"])
+        {
+            for (auto it = actions.begin(); it != actions.end(); ++it)
+            {
+                std::string stateName = it->first.as<std::string>();
+                std::vector<InputAction> stateActions;
+
+                for (const auto &actionNode : it->second)
+                {
+                    InputAction action;
+                    if (actionNode["buttons"])
+                    {
+                        for (const auto &btn : actionNode["buttons"])
+                        {
+                            action.buttons.push_back(btn.as<std::string>());
+                        }
+                    }
+                    action.holdMs = actionNode["hold_ms"].as<int>(120);
+                    action.waitAfterMs = actionNode["wait_after_ms"].as<int>(200);
+                    action.repeat = actionNode["repeat"].as<bool>(false);
+                    action.waitMs = actionNode["wait_ms"].as<int>(0);
+                    stateActions.push_back(action);
+                }
+
+                config.actions[stateName] = stateActions;
+            }
+        }
+
+        // Hunt behaviour
+        config.shinyCheckState = root["shiny_check_state"].as<std::string>("");
+        config.shinyCheckFrames = root["shiny_check_frames"].as<int>(15);
+        config.shinyCheckDelayMs = root["shiny_check_delay_ms"].as<int>(1500);
+        config.onShinyAction = root["on_shiny_action"].as<std::string>("stop");
+
+        if (auto alert = root["alert"])
+        {
+            config.alert.consoleBeep = alert["console_beep"].as<bool>(true);
+            config.alert.saveScreenshot = alert["save_screenshot"].as<bool>(true);
+            config.alert.logLevel = alert["log_level"].as<std::string>("error");
+        }
+
+        if (auto recovery = root["recovery"])
+        {
+            if (auto onStuck = recovery["on_stuck"])
+            {
+                config.onStuck.action = onStuck["action"].as<std::string>("soft_reset");
+                config.onStuck.maxRetries = onStuck["max_retries"].as<int>(5);
+            }
+            if (auto onFail = recovery["on_detection_failure"])
+            {
+                config.onDetectionFailure.action = onFail["action"].as<std::string>("skip");
+                config.onDetectionFailure.maxConsecutive = onFail["max_consecutive"].as<int>(10);
+            }
+        }
+
+        return config;
+    }
+
+    HuntConfig ToHuntConfig(const UnifiedHuntConfig &unified)
+    {
+        HuntConfig config;
+        config.huntId = unified.huntId;
+        config.huntName = unified.huntName;
+        config.targetPokemon = unified.targetPokemon;
+        config.shinyCheckState = unified.shinyCheckState;
+        config.shinyCheckFrames = unified.shinyCheckFrames;
+        config.shinyCheckDelayMs = unified.shinyCheckDelayMs;
+        config.onShinyAction = unified.onShinyAction;
+        config.actions = unified.actions;
+        config.alert = unified.alert;
+        config.onStuck = unified.onStuck;
+        config.onDetectionFailure = unified.onDetectionFailure;
         return config;
     }
 

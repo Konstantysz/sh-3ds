@@ -29,6 +29,12 @@ target_link_libraries(TestFramePreprocessor PRIVATE SH3DS::Capture)
 sh3ds_add_test(TestFsmTransitions unit/TestFsmTransitions.cpp)
 target_link_libraries(TestFsmTransitions PRIVATE SH3DS::FSM)
 
+sh3ds_add_test(TestHuntProfiles unit/TestHuntProfiles.cpp)
+target_link_libraries(TestHuntProfiles PRIVATE SH3DS::FSM)
+
+sh3ds_add_test(TestSoftResetStrategy unit/TestSoftResetStrategy.cpp)
+target_link_libraries(TestSoftResetStrategy PRIVATE SH3DS::Strategy)
+
 sh3ds_add_test(TestShinyDetector unit/TestShinyDetector.cpp)
 target_link_libraries(TestShinyDetector PRIVATE SH3DS::Vision)
 

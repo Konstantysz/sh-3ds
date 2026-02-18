@@ -4,7 +4,7 @@
 #include "Capture/VideoFrameSource.h"
 #include "Core/Config.h"
 #include "DebugLayer.h"
-#include "FSM/ConfigDrivenFSM.h"
+#include "FSM/HuntProfiles.h"
 #include "Kappa/Logger.h"
 #include "Vision/DominantColorDetector.h"
 
@@ -13,12 +13,11 @@
 namespace SH3DS::App
 {
     SH3DSDebugApp::SH3DSDebugApp(const std::string &hardwareConfigPath,
-        const std::string &gameProfilePath,
-        const std::string &detectionProfilePath,
+        const std::string &huntConfigPath,
         const std::string &replaySourcePath)
         : Application(GetSpec())
     {
-        auto pipeline = BuildPipeline(hardwareConfigPath, gameProfilePath, detectionProfilePath, replaySourcePath);
+        auto pipeline = BuildPipeline(hardwareConfigPath, huntConfigPath, replaySourcePath);
 
         GLFWwindow *windowHandle = GetWindow().GetHandle();
 
@@ -29,21 +28,21 @@ namespace SH3DS::App
             std::move(pipeline.preprocessor),
             std::move(pipeline.fsm),
             std::move(pipeline.detector),
+            pipeline.shinyRoi,
+            pipeline.shinyCheckState,
             pipeline.totalFrames,
             pipeline.targetFps);
     }
 
     SH3DSDebugApp::PipelineComponents SH3DSDebugApp::BuildPipeline(const std::string &hardwareConfigPath,
-        const std::string &gameProfilePath,
-        const std::string &detectionProfilePath,
+        const std::string &huntConfigPath,
         const std::string &replaySourcePath)
     {
         auto hardwareConfig = Core::LoadHardwareConfig(hardwareConfigPath);
-        auto gameProfile = Core::LoadGameProfile(gameProfilePath);
-        auto detectionProfile = Core::LoadDetectionProfile(detectionProfilePath);
+        auto unifiedConfig = Core::LoadUnifiedHuntConfig(huntConfigPath);
 
         LOG_INFO("SH-3DS Debug GUI");
-        LOG_INFO("Game: {}", gameProfile.gameName);
+        LOG_INFO("Hunt: {} (target: {})", unifiedConfig.huntName, unifiedConfig.targetPokemon);
         LOG_INFO("Replay: {}", replaySourcePath);
 
         PipelineComponents pipeline;
@@ -77,16 +76,18 @@ namespace SH3DS::App
 
         // Create preprocessor with optional bottom screen (corners set by ScreenDetector)
         pipeline.preprocessor = std::make_unique<Capture::FramePreprocessor>(
-            hardwareConfig.screenCalibration, gameProfile.rois, hardwareConfig.bottomScreenCalibration);
+            hardwareConfig.screenCalibration, unifiedConfig.rois, hardwareConfig.bottomScreenCalibration);
 
         // Create FSM
-        pipeline.fsm = std::make_unique<FSM::ConfigDrivenFSM>(gameProfile);
+        pipeline.fsm = FSM::HuntProfiles::CreateXYStarterSR(unifiedConfig.fsmParams);
 
         // Create detector
-        if (!detectionProfile.methods.empty())
+        if (!unifiedConfig.shinyDetector.method.empty())
         {
             pipeline.detector = Vision::DominantColorDetector::CreateDominantColorDetector(
-                detectionProfile.methods[0], detectionProfile.profileId);
+                unifiedConfig.shinyDetector, unifiedConfig.huntId);
+            pipeline.shinyRoi = unifiedConfig.shinyDetector.roi;
+            pipeline.shinyCheckState = unifiedConfig.shinyCheckState;
         }
 
         pipeline.targetFps = static_cast<float>(hardwareConfig.orchestrator.targetFps);

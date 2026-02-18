@@ -1,7 +1,7 @@
 #include "Capture/FramePreprocessor.h"
 #include "Core/Config.h"
 #include "Core/Types.h"
-#include "FSM/ConfigDrivenFSM.h"
+#include "FSM/CXXStateTreeFSM.h"
 #include "Vision/DominantColorDetector.h"
 #include "Vision/ShinyDetector.h"
 
@@ -11,7 +11,7 @@
 #include <gtest/gtest.h>
 
 /// Integration test: simulates a complete SR cycle with synthetic frames.
-/// Tests the pipeline: FramePreprocessor -> ConfigDrivenFSM -> ShinyDetector.
+/// Tests the pipeline: FramePreprocessor -> CXXStateTreeFSM -> ShinyDetector.
 class ReplayPipelineTest : public ::testing::Test
 {
 protected:
@@ -31,38 +31,61 @@ protected:
 
         preprocessor = std::make_unique<SH3DS::Capture::FramePreprocessor>(calibration, rois);
 
-        // Game profile with 2 states
-        SH3DS::Core::GameProfile profile;
-        profile.gameId = "test";
-        profile.initialState = "unknown";
-        profile.debounceFrames = 2;
+        // Build FSM with 2 states via Builder
+        SH3DS::FSM::CXXStateTreeFSM::Builder builder;
+        builder.SetInitialState("unknown");
+        builder.SetDebounceFrames(2);
 
-        SH3DS::Core::StateDefinition darkState;
-        darkState.id = "dark_screen";
-        darkState.detection.method = "color_histogram";
-        darkState.detection.roi = "full_screen";
-        darkState.detection.hsvLower = cv::Scalar(0, 0, 0);
-        darkState.detection.hsvUpper = cv::Scalar(180, 50, 50);
-        darkState.detection.pixelRatioMin = 0.7;
-        darkState.detection.pixelRatioMax = 1.0;
-        darkState.detection.threshold = 0.5;
-        darkState.maxDurationS = 30;
-        profile.states.push_back(darkState);
+        builder.AddState({
+            .id = "unknown",
+            .transitionsTo = {"dark_screen", "bright_screen"},
+            .maxDurationS = 120,
+            .detection = {
+                .roi = "full_screen",
+                .method = "color_histogram",
+                .hsvLower = cv::Scalar(0, 0, 0),
+                .hsvUpper = cv::Scalar(0, 0, 0),
+                .pixelRatioMin = 0.0,
+                .pixelRatioMax = 1.0,
+                .threshold = 999.0,
+                .templatePath = {},
+            },
+        });
 
-        SH3DS::Core::StateDefinition brightState;
-        brightState.id = "bright_screen";
-        brightState.detection.method = "color_histogram";
-        brightState.detection.roi = "full_screen";
-        brightState.detection.hsvLower = cv::Scalar(0, 0, 200);
-        brightState.detection.hsvUpper = cv::Scalar(180, 50, 255);
-        brightState.detection.pixelRatioMin = 0.7;
-        brightState.detection.pixelRatioMax = 1.0;
-        brightState.detection.threshold = 0.5;
-        brightState.maxDurationS = 30;
-        brightState.shinyCheck = true;
-        profile.states.push_back(brightState);
+        builder.AddState({
+            .id = "dark_screen",
+            .transitionsTo = {"bright_screen"},
+            .maxDurationS = 30,
+            .detection = {
+                .roi = "full_screen",
+                .method = "color_histogram",
+                .hsvLower = cv::Scalar(0, 0, 0),
+                .hsvUpper = cv::Scalar(180, 50, 50),
+                .pixelRatioMin = 0.7,
+                .pixelRatioMax = 1.0,
+                .threshold = 0.5,
+                .templatePath = {},
+            },
+        });
 
-        fsm = std::make_unique<SH3DS::FSM::ConfigDrivenFSM>(profile);
+        builder.AddState({
+            .id = "bright_screen",
+            .transitionsTo = {"dark_screen"},
+            .maxDurationS = 30,
+            .shinyCheck = true,
+            .detection = {
+                .roi = "full_screen",
+                .method = "color_histogram",
+                .hsvLower = cv::Scalar(0, 0, 200),
+                .hsvUpper = cv::Scalar(180, 50, 255),
+                .pixelRatioMin = 0.7,
+                .pixelRatioMax = 1.0,
+                .threshold = 0.5,
+                .templatePath = {},
+            },
+        });
+
+        fsm = builder.Build();
 
         // Detector
         SH3DS::Core::DetectionMethodConfig detConfig;
@@ -85,7 +108,7 @@ protected:
     SH3DS::Core::ScreenCalibrationConfig calibration;
     std::vector<SH3DS::Core::RoiDefinition> rois;
     std::unique_ptr<SH3DS::Capture::FramePreprocessor> preprocessor;
-    std::unique_ptr<SH3DS::FSM::ConfigDrivenFSM> fsm;
+    std::unique_ptr<SH3DS::FSM::CXXStateTreeFSM> fsm;
     std::unique_ptr<SH3DS::Vision::ShinyDetector> detector;
 };
 

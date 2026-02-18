@@ -4,7 +4,7 @@
 #include "Capture/ScreenDetector.h"
 #include "Core/Config.h"
 #include "Core/Types.h"
-#include "FSM/ConfigDrivenFSM.h"
+#include "FSM/HuntProfiles.h"
 #include "Input/MockInputAdapter.h"
 #include "Kappa/Logger.h"
 #include "Pipeline/Orchestrator.h"
@@ -35,9 +35,7 @@ int main(int argc, char *argv[])
 
     std::string mode = "console";
     std::string hardwareConfigPath = "config/hardware.yaml";
-    std::string gameProfilePath = "config/games/pokemon_xy.yaml";
-    std::string huntConfigPath = "config/hunts/xy_starter_sr.yaml";
-    std::string detectionProfilePath = "config/detection/xy_fennekin.yaml";
+    std::string huntConfigPath = "config/hunts/xy_starter_sr_fennekin.yaml";
     std::string replayPath;
 
     // TODO: split GUI into separate sh3ds-debug executable to avoid linking ImGui/OpenGL in console builds
@@ -45,9 +43,7 @@ int main(int argc, char *argv[])
         ->default_val("console")
         ->check(CLI::IsMember({ "console", "gui" }));
     app.add_option("--hardware", hardwareConfigPath, "Path to hardware config YAML");
-    app.add_option("--game", gameProfilePath, "Path to game profile YAML");
-    app.add_option("--hunt", huntConfigPath, "Path to hunt strategy config YAML");
-    app.add_option("--detection", detectionProfilePath, "Path to detection profile YAML");
+    app.add_option("--hunt-config", huntConfigPath, "Path to unified hunt config YAML");
     app.add_option("--replay", replayPath, "Replay source (directory or video file) for GUI mode");
 
     CLI11_PARSE(app, argc, argv);
@@ -63,7 +59,7 @@ int main(int argc, char *argv[])
             }
 
             LOG_INFO("Starting GUI mode...");
-            SH3DS::App::SH3DSDebugApp debugApp(hardwareConfigPath, gameProfilePath, detectionProfilePath, replayPath);
+            SH3DS::App::SH3DSDebugApp debugApp(hardwareConfigPath, huntConfigPath, replayPath);
             debugApp.Run();
             return 0;
         }
@@ -72,32 +68,30 @@ int main(int argc, char *argv[])
         LOG_INFO("Starting console mode...");
 
         auto hardwareConfig = SH3DS::Core::LoadHardwareConfig(hardwareConfigPath);
-        auto gameProfile = SH3DS::Core::LoadGameProfile(gameProfilePath);
-        auto huntConfig = SH3DS::Core::LoadHuntConfig(huntConfigPath);
-        auto detectionProfile = SH3DS::Core::LoadDetectionProfile(detectionProfilePath);
+        auto unifiedConfig = SH3DS::Core::LoadUnifiedHuntConfig(huntConfigPath);
 
         LOG_INFO("SH-3DS v{}", "0.1.0");
-        LOG_INFO("Game: {}", gameProfile.gameName);
-        LOG_INFO("Hunt: {} (target: {})", huntConfig.huntName, huntConfig.targetPokemon);
+        LOG_INFO("Hunt: {} (target: {})", unifiedConfig.huntName, unifiedConfig.targetPokemon);
 
         auto frameSource = SH3DS::Capture::FileFrameSource::CreateFileFrameSource(
             hardwareConfig.camera.uri, hardwareConfig.orchestrator.targetFps);
 
         auto screenDetector = SH3DS::Capture::ScreenDetector::CreateScreenDetector();
 
-        auto preprocessor =
-            std::make_unique<SH3DS::Capture::FramePreprocessor>(hardwareConfig.screenCalibration, gameProfile.rois);
+        auto preprocessor = std::make_unique<SH3DS::Capture::FramePreprocessor>(
+            hardwareConfig.screenCalibration, unifiedConfig.rois);
 
-        auto fsm = std::make_unique<SH3DS::FSM::ConfigDrivenFSM>(gameProfile);
+        auto fsm = SH3DS::FSM::HuntProfiles::CreateXYStarterSR(unifiedConfig.fsmParams);
 
         std::unique_ptr<SH3DS::Vision::ShinyDetector> detector;
-        if (!detectionProfile.methods.empty())
+        if (!unifiedConfig.shinyDetector.method.empty())
         {
             detector = SH3DS::Vision::DominantColorDetector::CreateDominantColorDetector(
-                detectionProfile.methods[0], detectionProfile.profileId);
+                unifiedConfig.shinyDetector, unifiedConfig.huntId);
         }
 
-        auto strategy = std::make_unique<SH3DS::Strategy::SoftResetStrategy>(huntConfig);
+        auto strategy = std::make_unique<SH3DS::Strategy::SoftResetStrategy>(
+            SH3DS::Core::ToHuntConfig(unifiedConfig));
         auto input = SH3DS::Input::MockInputAdapter::CreateMockInputAdapter();
 
         SH3DS::Pipeline::Orchestrator orchestrator(std::move(frameSource),

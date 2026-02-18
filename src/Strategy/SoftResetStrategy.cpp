@@ -21,10 +21,11 @@ namespace SH3DS::Strategy
             actionIndex = 0;
             waitingForShinyCheck = false;
             consecutiveStuckCount = 0;
+            shinyCheckAttempts = 0;
         }
 
         // Check shiny result in the shiny check state
-        if (currentState == config.shinyCheckState)
+        if (!config.shinyCheckState.empty() && currentState == config.shinyCheckState)
         {
             // Wait for the delay before checking
             if (timeInState < std::chrono::milliseconds(config.shinyCheckDelayMs))
@@ -69,7 +70,18 @@ namespace SH3DS::Strategy
             }
             else
             {
-                return { { .action = Core::HuntAction::CheckShiny, .reason = "requesting shiny check" }, {} };
+                ++shinyCheckAttempts;
+                if (shinyCheckAttempts > config.shinyCheckFrames)
+                {
+                    LOG_WARN("Strategy: no shiny result after {} requests — skipping shiny check (no detector?)",
+                        shinyCheckAttempts);
+                    shinyCheckAttempts = 0;
+                    // Fall through to action execution as if NotShiny
+                }
+                else
+                {
+                    return { { .action = Core::HuntAction::CheckShiny, .reason = "requesting shiny check" }, {} };
+                }
             }
         }
 
@@ -83,9 +95,9 @@ namespace SH3DS::Strategy
         const auto &stateActions = it->second;
 
         // Standalone wait action
-        if (actionIndex < static_cast<int>(stateActions.size()))
+        if (static_cast<size_t>(actionIndex) < stateActions.size())
         {
-            const auto &action = stateActions[actionIndex];
+            const auto &action = stateActions[static_cast<size_t>(actionIndex)];
 
             if (action.waitMs > 0 && action.buttons.empty())
             {
@@ -102,9 +114,9 @@ namespace SH3DS::Strategy
         }
 
         // Execute button actions
-        if (actionIndex < static_cast<int>(stateActions.size()))
+        if (static_cast<size_t>(actionIndex) < stateActions.size())
         {
-            const auto &action = stateActions[actionIndex];
+            const auto &action = stateActions[static_cast<size_t>(actionIndex)];
 
             if (!action.buttons.empty())
             {
@@ -172,6 +184,7 @@ namespace SH3DS::Strategy
         lastActionTime = std::chrono::steady_clock::now();
         waitingForShinyCheck = false;
         consecutiveStuckCount = 0;
+        shinyCheckAttempts = 0;
     }
 
     std::string SoftResetStrategy::Describe() const

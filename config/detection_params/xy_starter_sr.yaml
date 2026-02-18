@@ -1,0 +1,78 @@
+debounce_frames: 3
+states:
+  load_game:
+    method: "color_histogram"
+    roi: "top_strip"
+    hsv_lower: [60, 60, 190]
+    hsv_upper: [90, 100, 255]
+    threshold: 0.6
+
+  game_start:
+    method: "color_histogram"
+    roi: "top_strip"
+    hsv_lower: [75, 0, 210]
+    hsv_upper: [110, 45, 255]
+    threshold: 0.6
+
+  cutscene_start:
+    method: "color_histogram"
+    roi: "dialogue"
+    hsv_lower: [100, 35, 200]
+    hsv_upper: [120, 70, 255]
+    threshold: 0.6
+
+  cutscene:
+    method: "color_histogram"
+    roi: "dialogue"
+    hsv_lower: [95, 65, 185]
+    hsv_upper: [115, 95, 225]
+    threshold: 0.6
+
+  starter_pick:
+    method: "color_histogram"
+    roi: "top_strip"
+    hsv_lower: [100, 80, 180]
+    hsv_upper: [118, 115, 225]
+    threshold: 0.6
+
+  nickname_prompt:
+    method: "color_histogram"
+    roi: "top_strip"
+    hsv_lower: [100, 75, 165]
+    hsv_upper: [120, 105, 200]
+    threshold: 0.5
+
+  post_selection:
+    method: "color_histogram"
+    roi: "dialogue"
+    hsv_lower: [100, 145, 125]
+    hsv_upper: [125, 180, 170]
+    threshold: 0.5
+
+  cutscene_end:
+    method: "color_histogram"
+    roi: "dialogue"
+    hsv_lower: [100, 75, 155]
+    hsv_upper: [120, 105, 195]
+    threshold: 0.5
+
+  party_menu:
+    method: "color_histogram"
+    roi: "top_strip"
+    hsv_lower: [96, 130, 180]
+    hsv_upper: [112, 165, 225]
+    threshold: 0.6
+
+  pokemon_summary:
+    method: "color_histogram"
+    roi: "pokemon_sprite"
+    hsv_lower: [100, 70, 165]
+    hsv_upper: [120, 105, 215]
+    threshold: 0.3
+
+  soft_reset:
+    method: "color_histogram"
+    roi: "top_full"
+    hsv_lower: [0, 0, 0]
+    hsv_upper: [180, 255, 40]
+    threshold: 0.95

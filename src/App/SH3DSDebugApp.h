@@ -22,13 +22,11 @@ namespace SH3DS::App
         /**
          * @brief Constructs the debug application.
          * @param hardwareConfigPath Path to hardware config YAML.
-         * @param gameProfilePath Path to game profile YAML.
-         * @param detectionProfilePath Path to detection profile YAML.
+         * @param huntConfigPath Path to unified hunt config YAML.
          * @param replaySourcePath Path to replay source (directory or video file).
          */
         SH3DSDebugApp(const std::string &hardwareConfigPath,
-            const std::string &gameProfilePath,
-            const std::string &detectionProfilePath,
+            const std::string &huntConfigPath,
             const std::string &replaySourcePath);
 
     private:
@@ -43,6 +41,8 @@ namespace SH3DS::App
             std::unique_ptr<Capture::FramePreprocessor> preprocessor; ///< Perspective warp
             std::unique_ptr<FSM::GameStateFSM> fsm;                   ///< Game state FSM
             std::unique_ptr<Vision::ShinyDetector> detector;          ///< Shiny detector (may be null)
+            std::string shinyRoi;                                     ///< ROI name to pass to the shiny detector
+            std::string shinyCheckState;                              ///< FSM state in which shiny detection runs
             size_t totalFrames = 0;                                   ///< Total frames in source
             float targetFps = 12.0f;                                  ///< Target playback FPS
         };
@@ -50,14 +50,12 @@ namespace SH3DS::App
         /**
          * @brief Loads configs and creates all pipeline components.
          * @param hardwareConfigPath Path to hardware config YAML.
-         * @param gameProfilePath Path to game profile YAML.
-         * @param detectionProfilePath Path to detection profile YAML.
+         * @param huntConfigPath Path to unified hunt config YAML.
          * @param replaySourcePath Path to replay source (directory or video file).
          * @return Assembled pipeline components.
          */
         static PipelineComponents BuildPipeline(const std::string &hardwareConfigPath,
-            const std::string &gameProfilePath,
-            const std::string &detectionProfilePath,
+            const std::string &huntConfigPath,
             const std::string &replaySourcePath);
 
         /**

@@ -19,7 +19,7 @@ namespace SH3DS::Capture
         const std::array<cv::Point2f, 4> &b,
         float epsilon = 0.01f)
     {
-        for (int i = 0; i < 4; ++i)
+        for (size_t i = 0; i < 4; ++i)
         {
             if (std::abs(a[i].x - b[i].x) > epsilon || std::abs(a[i].y - b[i].y) > epsilon)
             {

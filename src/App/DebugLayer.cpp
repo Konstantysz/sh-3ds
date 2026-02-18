@@ -17,6 +17,8 @@ namespace SH3DS::App
         std::unique_ptr<Capture::FramePreprocessor> preprocessor,
         std::unique_ptr<FSM::GameStateFSM> fsm,
         std::unique_ptr<Vision::ShinyDetector> detector,
+        std::string shinyRoi,
+        std::string shinyCheckState,
         size_t totalFrames,
         float targetFps)
         : source(std::move(source)),
@@ -25,6 +27,8 @@ namespace SH3DS::App
           preprocessor(std::move(preprocessor)),
           fsm(std::move(fsm)),
           detector(std::move(detector)),
+          shinyRoi(std::move(shinyRoi)),
+          shinyCheckState(std::move(shinyCheckState)),
           playback(totalFrames, targetFps)
     {
         // Initialize ImGui
@@ -180,15 +184,21 @@ namespace SH3DS::App
             if (dualResult->topRois)
             {
                 fsm->Update(*dualResult->topRois);
-                currentStateName = fsm->CurrentState();
+                const std::string newState = fsm->CurrentState();
+                if (newState != currentStateName)
+                {
+                    currentShinyResult = std::nullopt; // clear stale result on state change
+                    currentStateName = newState;
+                }
                 auto ms = fsm->TimeInCurrentState();
                 timeInState = static_cast<float>(ms.count()) / 1000.0f;
             }
 
-            // Shiny detection
-            if (detector && dualResult->topRois)
+            // Shiny detection: only run in the designated shiny-check state
+            if (detector && dualResult->topRois && !shinyRoi.empty()
+                && (shinyCheckState.empty() || currentStateName == shinyCheckState))
             {
-                auto it = dualResult->topRois->find("pokemon_sprite");
+                auto it = dualResult->topRois->find(shinyRoi);
                 if (it != dualResult->topRois->end() && !it->second.empty())
                 {
                     currentShinyResult = detector->Detect(it->second);
@@ -235,7 +245,7 @@ namespace SH3DS::App
         ImGui::Separator();
 
         ImGui::Text("FSM State: %s", currentStateName.c_str());
-        ImGui::Text("Time in State: %.1f s", timeInState);
+        ImGui::Text("Time in State: %.1f s", static_cast<double>(timeInState));
 
         ImGui::Separator();
 
@@ -334,7 +344,7 @@ namespace SH3DS::App
             playback.SetPlaybackSpeed(speed);
         }
         ImGui::SameLine();
-        ImGui::Text("FPS: %.1f", playback.GetTargetFps() * speed);
+        ImGui::Text("FPS: %.1f", static_cast<double>(playback.GetTargetFps() * speed));
 
         ImGui::End();
     }

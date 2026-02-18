@@ -54,6 +54,7 @@ TEST(ShinyResult, ConstructWithVerdict)
         .confidence = 0.95,
         .method = "dominant_color",
         .details = "shiny ratio: 0.25",
+        .debugImage = {},
     };
     EXPECT_EQ(result.verdict, SH3DS::Core::ShinyVerdict::Shiny);
     EXPECT_DOUBLE_EQ(result.confidence, 0.95);
