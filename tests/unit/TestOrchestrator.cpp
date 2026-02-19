@@ -11,6 +11,22 @@
 
 namespace
 {
+    std::unique_ptr<SH3DS::Capture::FramePreprocessor> MakeCalibratedPreprocessor()
+    {
+        SH3DS::Core::ScreenCalibrationConfig calibration;
+        calibration.corners = {
+            cv::Point2f(0.0f, 0.0f),
+            cv::Point2f(399.0f, 0.0f),
+            cv::Point2f(399.0f, 239.0f),
+            cv::Point2f(0.0f, 239.0f),
+        };
+        std::vector<SH3DS::Core::RoiDefinition> rois = {
+            { .name = "pokemon_sprite", .x = 0.0, .y = 0.0, .w = 1.0, .h = 1.0 },
+            { .name = "custom_sprite_roi", .x = 0.0, .y = 0.0, .w = 1.0, .h = 1.0 },
+        };
+        return std::make_unique<SH3DS::Capture::FramePreprocessor>(calibration, rois);
+    }
+
     // ── Minimal FSM stub ────────────────────────────────────────────────────
 
     class StubFSM : public SH3DS::FSM::GameStateFSM
@@ -34,11 +50,6 @@ namespace
         bool IsStuck() const override
         {
             return stuck;
-        }
-
-        void ForceState(const SH3DS::Core::GameState &state) override
-        {
-            currentState = state;
         }
 
         void Reset() override
@@ -67,12 +78,17 @@ namespace
     class StubStrategy : public SH3DS::Strategy::HuntStrategy
     {
     public:
+        explicit StubStrategy(SH3DS::Core::HuntAction tickAction = SH3DS::Core::HuntAction::Wait)
+            : tickAction(tickAction)
+        {
+        }
+
         SH3DS::Strategy::StrategyDecision Tick(const SH3DS::Core::GameState &,
             std::chrono::milliseconds,
             const std::optional<SH3DS::Core::ShinyResult> &) override
         {
             SH3DS::Strategy::StrategyDecision d;
-            d.decision.action = SH3DS::Core::HuntAction::Wait;
+            d.decision.action = tickAction;
             return d;
         }
 
@@ -98,6 +114,7 @@ namespace
         }
 
         SH3DS::Core::HuntStatistics stats;
+        SH3DS::Core::HuntAction tickAction = SH3DS::Core::HuntAction::Wait;
     };
 
     // ── Frame source stub that yields exactly one frame then exhausts ────────
@@ -139,11 +156,6 @@ namespace
         bool grabbed = false;
     };
 
-    // ── Preprocessor that returns an empty ROISet (no screens detected) ──────
-    // We construct a FramePreprocessor with empty calibration — it returns nullopt.
-    // Instead, use a real FramePreprocessor with zero corners, which gracefully
-    // skips warp and returns nullopt.
-
 } // namespace
 
 // ── Tests ───────────────────────────────────────────────────────────────────
@@ -159,11 +171,10 @@ TEST(Orchestrator, NullDetectorDoesNotCrashOnTick)
     // Use nullptr detector — this is the scenario under test.
     SH3DS::Pipeline::Orchestrator orchestrator(std::make_unique<SingleFrameSource>(),
         nullptr, // no screen detector
-        std::make_unique<SH3DS::Capture::FramePreprocessor>(
-            SH3DS::Core::ScreenCalibrationConfig{}, std::vector<SH3DS::Core::RoiDefinition>{}),
+        MakeCalibratedPreprocessor(),
         std::make_unique<StubFSM>(),
         nullptr, // <-- null detector
-        std::make_unique<StubStrategy>(),
+        std::make_unique<StubStrategy>(SH3DS::Core::HuntAction::Abort),
         nullptr, // no input adapter
         cfg);
 
@@ -186,20 +197,19 @@ TEST(Orchestrator, ShinyRoiFromConfigIsUsedNotHardcoded)
     // Run completes without crash using the custom ROI name (no detector, so no actual lookup matters).
     SH3DS::Pipeline::Orchestrator orchestrator(std::make_unique<SingleFrameSource>(),
         nullptr,
-        std::make_unique<SH3DS::Capture::FramePreprocessor>(
-            SH3DS::Core::ScreenCalibrationConfig{}, std::vector<SH3DS::Core::RoiDefinition>{}),
+        MakeCalibratedPreprocessor(),
         std::make_unique<StubFSM>(),
         nullptr,
-        std::make_unique<StubStrategy>(),
+        std::make_unique<StubStrategy>(SH3DS::Core::HuntAction::Abort),
         nullptr,
         cfg);
 
     EXPECT_NO_THROW(orchestrator.Run());
 }
 
-TEST(Orchestrator, NullDetectorDoesNotCrashOnWatchdogRecovery)
+TEST(Orchestrator, StuckWatchdogAbortsWithoutRecoveryActions)
 {
-    // When watchdog triggers and detector is null, detector->Reset() must not be called.
+    // When watchdog triggers, Orchestrator should log/metric and abort without recovery actions.
     SH3DS::Core::OrchestratorConfig cfg;
     cfg.targetFps = 30.0;
     cfg.shinyRoi = "pokemon_sprite";
@@ -207,16 +217,15 @@ TEST(Orchestrator, NullDetectorDoesNotCrashOnWatchdogRecovery)
     auto stubFsm = std::make_unique<StubFSM>();
     stubFsm->stuck = true; // triggers watchdog immediately
 
-    // StubStrategy::OnStuck returns Abort, so Orchestrator calls Stop() — no detector->Reset() path.
     SH3DS::Pipeline::Orchestrator orchestrator(std::make_unique<SingleFrameSource>(),
         nullptr,
-        std::make_unique<SH3DS::Capture::FramePreprocessor>(
-            SH3DS::Core::ScreenCalibrationConfig{}, std::vector<SH3DS::Core::RoiDefinition>{}),
+        MakeCalibratedPreprocessor(),
         std::move(stubFsm),
         nullptr,
-        std::make_unique<StubStrategy>(),
+        std::make_unique<StubStrategy>(SH3DS::Core::HuntAction::Wait),
         nullptr,
         cfg);
 
     EXPECT_NO_THROW(orchestrator.Run());
+    EXPECT_EQ(orchestrator.Stats().watchdogRecoveries, 1u);
 }

@@ -66,6 +66,6 @@ namespace SH3DS::Strategy
         std::chrono::steady_clock::time_point lastActionTime; ///< Timestamp of last action
         bool waitingForShinyCheck = false;                    ///< Whether waiting for shiny check
         int consecutiveStuckCount = 0;                        ///< Consecutive stuck recovery count
-        int shinyCheckAttempts = 0;                           ///< Consecutive frames requesting shiny check
+        bool shinyCheckResolvedInState = false;               ///< Whether shiny check was already resolved in state
     };
 } // namespace SH3DS::Strategy

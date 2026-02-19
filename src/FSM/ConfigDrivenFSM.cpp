@@ -83,12 +83,12 @@ namespace SH3DS::FSM
         return std::nullopt;
     }
 
-    Core::GameState ConfigDrivenFSM::CurrentState() const
+    const Core::GameState &ConfigDrivenFSM::GetCurrentState() const
     {
         return currentState;
     }
 
-    std::chrono::milliseconds ConfigDrivenFSM::TimeInCurrentState() const
+    std::chrono::milliseconds ConfigDrivenFSM::GetTimeInCurrentState() const
     {
         auto now = std::chrono::steady_clock::now();
         return std::chrono::duration_cast<std::chrono::milliseconds>(now - stateEnteredAt);
@@ -101,25 +101,11 @@ namespace SH3DS::FSM
             if (stateDef.id == currentState)
             {
                 auto maxDuration = std::chrono::seconds(stateDef.maxDurationS);
-                return TimeInCurrentState() > maxDuration;
+                return GetTimeInCurrentState() > maxDuration;
             }
         }
         // Unknown state — use a default timeout
-        return TimeInCurrentState() > std::chrono::seconds(120);
-    }
-
-    void ConfigDrivenFSM::ForceState(const Core::GameState &state)
-    {
-        Core::StateTransition transition{
-            .from = currentState, .to = state, .timestamp = std::chrono::steady_clock::now()
-        };
-
-        currentState = state;
-        stateEnteredAt = transition.timestamp;
-        pendingState = state;
-        pendingFrameCount = 0;
-
-        RecordTransition(transition);
+        return GetTimeInCurrentState() > std::chrono::seconds(120);
     }
 
     void ConfigDrivenFSM::Reset()
@@ -131,7 +117,7 @@ namespace SH3DS::FSM
         history.clear();
     }
 
-    const std::vector<Core::StateTransition> &ConfigDrivenFSM::History() const
+    const std::vector<Core::StateTransition> &ConfigDrivenFSM::GetTransitionHistory() const
     {
         return history;
     }

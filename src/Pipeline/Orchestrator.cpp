@@ -96,9 +96,11 @@ namespace SH3DS::Pipeline
             }
         }
 
-        LOG_INFO("Orchestrator stopped. Final stats: {} encounters, {} shinies",
-            strategy->Stats().encounters,
-            strategy->Stats().shiniesFound);
+        const auto finalStats = Stats();
+        LOG_INFO("Orchestrator stopped. Final stats: {} encounters, {} shinies, {} watchdog stuck events",
+            finalStats.encounters,
+            finalStats.shiniesFound,
+            finalStats.watchdogRecoveries);
     }
 
     void Orchestrator::Stop()
@@ -108,7 +110,9 @@ namespace SH3DS::Pipeline
 
     Core::HuntStatistics Orchestrator::Stats() const
     {
-        return strategy->Stats();
+        auto stats = strategy->Stats();
+        stats.watchdogRecoveries += watchdogStuckCount;
+        return stats;
     }
 
     void Orchestrator::MainLoopTick()
@@ -176,25 +180,12 @@ namespace SH3DS::Pipeline
     {
         if (fsm->IsStuck())
         {
+            ++watchdogStuckCount;
             LOG_WARN("Watchdog: FSM stuck in state '{}' for {}ms",
                 fsm->GetCurrentState(),
                 fsm->GetTimeInCurrentState().count());
-
-            const auto recovery = strategy->OnStuck();
-            ExecuteDecision(recovery);
-
-            if (recovery.decision.action == Core::HuntAction::Abort)
-            {
-                Stop();
-            }
-            else
-            {
-                fsm->ForceState(fsm->GetInitialState());
-                if (detector)
-                {
-                    detector->Reset();
-                }
-            }
+            LOG_ERROR("ABORT: watchdog detected stuck FSM state");
+            Stop();
         }
     }
 

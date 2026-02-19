@@ -35,12 +35,6 @@ namespace SH3DS::FSM
         virtual bool IsStuck() const = 0;
 
         /**
-         * @brief Forces the FSM to a specific state.
-         * @param state The state to force the FSM to.
-         */
-        virtual void ForceState(const Core::GameState &state) = 0;
-
-        /**
          * @brief Gets the current state.
          * @return The current state.
          */

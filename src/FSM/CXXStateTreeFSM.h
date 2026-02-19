@@ -85,8 +85,6 @@ namespace SH3DS::FSM
 
         bool IsStuck() const override;
 
-        void ForceState(const Core::GameState &state) override;
-
         const Core::GameState &GetCurrentState() const override;
 
         const Core::GameState &GetInitialState() const override;

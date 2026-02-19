@@ -34,25 +34,19 @@ namespace SH3DS::FSM
          * @brief Gets the current state.
          * @return The current state.
          */
-        Core::GameState CurrentState() const override;
+        const Core::GameState &GetCurrentState() const override;
 
         /**
          * @brief Gets the time in the current state.
          * @return The time in the current state.
          */
-        std::chrono::milliseconds TimeInCurrentState() const override;
+        std::chrono::milliseconds GetTimeInCurrentState() const override;
 
         /**
          * @brief Checks if the FSM is stuck.
          * @return True if the FSM is stuck, false otherwise.
          */
         bool IsStuck() const override;
-
-        /**
-         * @brief Forces the FSM to a specific state.
-         * @param state The state to force the FSM to.
-         */
-        void ForceState(const Core::GameState &state) override;
 
         /**
          * @brief Resets the FSM.
@@ -63,7 +57,7 @@ namespace SH3DS::FSM
          * @brief Gets the history of state transitions.
          * @return The history of state transitions.
          */
-        const std::vector<Core::StateTransition> &History() const override;
+        const std::vector<Core::StateTransition> &GetTransitionHistory() const override;
 
     private:
         /**

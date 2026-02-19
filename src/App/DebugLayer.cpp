@@ -134,13 +134,13 @@ namespace SH3DS::App
     void DebugLayer::ProcessCurrentFrame()
     {
         size_t frameIndex = playback.GetCurrentFrameIndex();
-
         if (frameIndex == lastProcessedFrame)
         {
             return;
         }
 
         seeker->Seek(frameIndex);
+
         auto frame = source->Grab();
         if (!frame)
         {
@@ -151,58 +151,58 @@ namespace SH3DS::App
         rawWidth = currentRawFrame.cols;
         rawHeight = currentRawFrame.rows;
 
-        // Upload raw frame texture
         TextureUploader::Upload(currentRawFrame, rawFrameTexture);
 
-        // Auto-detect screen corners and update preprocessor
         if (screenDetector)
         {
             screenDetector->ApplyTo(*preprocessor, frame->image);
         }
 
-        // Process through preprocessor
         auto dualResult = preprocessor->ProcessDualScreen(frame->image);
-        if (dualResult)
+        if (!dualResult)
         {
-            if (!dualResult->warpedTop.empty())
+            lastProcessedFrame = frameIndex;
+            return;
+        }
+
+        if (!dualResult->warpedTop.empty())
+        {
+            currentTopScreen = dualResult->warpedTop;
+            topWidth = currentTopScreen.cols;
+            topHeight = currentTopScreen.rows;
+            TextureUploader::Upload(currentTopScreen, topScreenTexture);
+        }
+
+        if (!dualResult->warpedBottom.empty())
+        {
+            currentBottomScreen = dualResult->warpedBottom;
+            bottomWidth = currentBottomScreen.cols;
+            bottomHeight = currentBottomScreen.rows;
+            TextureUploader::Upload(currentBottomScreen, bottomScreenTexture);
+        }
+
+        if (dualResult->topRois)
+        {
+            fsm->Update(*dualResult->topRois);
+
+            const std::string newState = fsm->GetCurrentState();
+            if (newState != currentStateName)
             {
-                currentTopScreen = dualResult->warpedTop;
-                topWidth = currentTopScreen.cols;
-                topHeight = currentTopScreen.rows;
-                TextureUploader::Upload(currentTopScreen, topScreenTexture);
+                currentShinyResult = std::nullopt; // clear stale result on state change
+                currentStateName = newState;
             }
 
-            if (!dualResult->warpedBottom.empty())
-            {
-                currentBottomScreen = dualResult->warpedBottom;
-                bottomWidth = currentBottomScreen.cols;
-                bottomHeight = currentBottomScreen.rows;
-                TextureUploader::Upload(currentBottomScreen, bottomScreenTexture);
-            }
+            auto ms = fsm->GetTimeInCurrentState();
+            timeInState = static_cast<float>(ms.count()) / 1000.0f;
+        }
 
-            // Update FSM
-            if (dualResult->topRois)
+        if (detector && dualResult->topRois && !shinyRoi.empty()
+            && (shinyCheckState.empty() || currentStateName == shinyCheckState))
+        {
+            auto it = dualResult->topRois->find(shinyRoi);
+            if (it != dualResult->topRois->end() && !it->second.empty())
             {
-                fsm->Update(*dualResult->topRois);
-                const std::string newState = fsm->GetCurrentState();
-                if (newState != currentStateName)
-                {
-                    currentShinyResult = std::nullopt; // clear stale result on state change
-                    currentStateName = newState;
-                }
-                auto ms = fsm->GetTimeInCurrentState();
-                timeInState = static_cast<float>(ms.count()) / 1000.0f;
-            }
-
-            // Shiny detection: only run in the designated shiny-check state
-            if (detector && dualResult->topRois && !shinyRoi.empty()
-                && (shinyCheckState.empty() || currentStateName == shinyCheckState))
-            {
-                auto it = dualResult->topRois->find(shinyRoi);
-                if (it != dualResult->topRois->end() && !it->second.empty())
-                {
-                    currentShinyResult = detector->Detect(it->second);
-                }
+                currentShinyResult = detector->Detect(it->second);
             }
         }
 

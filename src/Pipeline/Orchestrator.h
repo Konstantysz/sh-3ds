@@ -83,5 +83,6 @@ namespace SH3DS::Pipeline
         std::unique_ptr<Input::InputAdapter> input;               ///< Input adapter for 3DS injection
         Core::OrchestratorConfig config;                          ///< Runtime configuration
         std::atomic<bool> running = false;                        ///< Whether the main loop is running
+        uint64_t watchdogStuckCount = 0;                          ///< Number of stuck detections
     };
 } // namespace SH3DS::Pipeline

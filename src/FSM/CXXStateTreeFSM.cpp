@@ -172,20 +172,6 @@ namespace SH3DS::FSM
         return GetTimeInCurrentState() > std::chrono::seconds(config->maxDurationS);
     }
 
-    void CXXStateTreeFSM::ForceState(const Core::GameState &state)
-    {
-        Core::StateTransition transition{
-            .from = currentState, .to = state, .timestamp = std::chrono::steady_clock::now()
-        };
-
-        currentState = state;
-        stateEnteredAt = transition.timestamp;
-        pendingState = state;
-        pendingFrameCount = 0;
-
-        RecordTransition(transition);
-    }
-
     const Core::GameState &CXXStateTreeFSM::GetCurrentState() const
     {
         return currentState;

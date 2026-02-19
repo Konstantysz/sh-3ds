@@ -21,11 +21,11 @@ namespace SH3DS::Strategy
             actionIndex = 0;
             waitingForShinyCheck = false;
             consecutiveStuckCount = 0;
-            shinyCheckAttempts = 0;
+            shinyCheckResolvedInState = false;
         }
 
-        // Check shiny result in the shiny check state
-        if (!config.shinyCheckState.empty() && currentState == config.shinyCheckState)
+        // Check shiny only in the configured state, once per state entry.
+        if (!config.shinyCheckState.empty() && currentState == config.shinyCheckState && !shinyCheckResolvedInState)
         {
             // Wait for the delay before checking
             if (timeInState < std::chrono::milliseconds(config.shinyCheckDelayMs))
@@ -58,30 +58,19 @@ namespace SH3DS::Strategy
 
                     LOG_INFO("Encounter #{}: not shiny (confidence={:.3f})", stats.encounters, shinyResult->confidence);
 
-                    // Continue to post-reveal / soft reset
-                    waitingForShinyCheck = false;
+                    shinyCheckResolvedInState = true;
                 }
-                // Uncertain — keep checking
                 else
                 {
-                    return { { .action = Core::HuntAction::CheckShiny, .reason = "uncertain verdict, re-checking" },
-                        {} };
+                    LOG_WARN("Strategy: shiny check is uncertain; treating as not shiny for this encounter");
+                    shinyCheckResolvedInState = true;
                 }
             }
             else
             {
-                ++shinyCheckAttempts;
-                if (shinyCheckAttempts > config.shinyCheckFrames)
-                {
-                    LOG_WARN("Strategy: no shiny result after {} requests — skipping shiny check (no detector?)",
-                        shinyCheckAttempts);
-                    shinyCheckAttempts = 0;
-                    // Fall through to action execution as if NotShiny
-                }
-                else
-                {
-                    return { { .action = Core::HuntAction::CheckShiny, .reason = "requesting shiny check" }, {} };
-                }
+                // Detector is expected to run continuously in orchestrator. If no result is available
+                // in this frame, wait until one appears; do not request repeated explicit checks.
+                return { { .action = Core::HuntAction::Wait, .reason = "awaiting shiny result" }, {} };
             }
         }
 
@@ -184,7 +173,7 @@ namespace SH3DS::Strategy
         lastActionTime = std::chrono::steady_clock::now();
         waitingForShinyCheck = false;
         consecutiveStuckCount = 0;
-        shinyCheckAttempts = 0;
+        shinyCheckResolvedInState = false;
     }
 
     std::string SoftResetStrategy::Describe() const

@@ -30,16 +30,17 @@ namespace
 
 } // namespace
 
-TEST(SoftResetStrategy, NullDetectorDoesNotLoopForever)
+TEST(SoftResetStrategy, NullDetectorWaitsWithoutCheckShinyLoop)
 {
     // shinyCheckState is set, but no detector exists — orchestrator always passes nullopt.
-    // Strategy should give up after shinyCheckFrames requests and stop returning CheckShiny.
+    // Strategy should wait for a result and never spam explicit CheckShiny actions.
     auto config = MakeConfig("check_state", 3);
     SH3DS::Strategy::SoftResetStrategy strategy(config);
 
     auto noResult = std::optional<SH3DS::Core::ShinyResult>{};
 
     int checkShinyCount = 0;
+    int waitCount = 0;
     for (int i = 0; i < 20; ++i)
     {
         auto decision = strategy.Tick("check_state", std::chrono::milliseconds(9999), noResult);
@@ -47,10 +48,14 @@ TEST(SoftResetStrategy, NullDetectorDoesNotLoopForever)
         {
             ++checkShinyCount;
         }
+        if (decision.decision.action == SH3DS::Core::HuntAction::Wait)
+        {
+            ++waitCount;
+        }
     }
 
-    // Should have requested CheckShiny at most shinyCheckFrames (3) times, then given up.
-    EXPECT_LE(checkShinyCount, 3);
+    EXPECT_EQ(checkShinyCount, 0);
+    EXPECT_EQ(waitCount, 20);
 }
 
 TEST(SoftResetStrategy, EmptyShinyCheckStateSkipsCheck)
@@ -104,23 +109,62 @@ TEST(SoftResetStrategy, NotShinyResultContinues)
     EXPECT_NE(decision.decision.action, SH3DS::Core::HuntAction::AlertShiny);
 }
 
-TEST(SoftResetStrategy, ResetClearsShinyCheckAttempts)
+TEST(SoftResetStrategy, ShinyCheckResolvesOncePerStateEntry)
 {
-    auto config = MakeConfig("check_state", 2);
+    auto config = MakeConfig("check_state");
     SH3DS::Strategy::SoftResetStrategy strategy(config);
 
-    auto noResult = std::optional<SH3DS::Core::ShinyResult>{};
+    SH3DS::Core::ShinyResult notShiny{
+        .verdict = SH3DS::Core::ShinyVerdict::NotShiny,
+        .confidence = 0.95,
+        .method = "dominant_color",
+        .details = "not shiny",
+        .debugImage = {},
+    };
+    SH3DS::Core::ShinyResult shiny{
+        .verdict = SH3DS::Core::ShinyVerdict::Shiny,
+        .confidence = 0.99,
+        .method = "dominant_color",
+        .details = "shiny",
+        .debugImage = {},
+    };
 
-    // Exhaust the attempts
-    for (int i = 0; i < 5; ++i)
-    {
-        strategy.Tick("check_state", std::chrono::milliseconds(9999), noResult);
-    }
+    // First result resolves check for this state entry.
+    auto first = strategy.Tick("check_state", std::chrono::milliseconds(9999), notShiny);
+    EXPECT_NE(first.decision.action, SH3DS::Core::HuntAction::AlertShiny);
 
-    // After reset, should be able to request CheckShiny again
+    // Subsequent frames in the same state should not re-evaluate shiny result.
+    auto second = strategy.Tick("check_state", std::chrono::milliseconds(9999), shiny);
+    EXPECT_NE(second.decision.action, SH3DS::Core::HuntAction::AlertShiny);
+}
+
+TEST(SoftResetStrategy, ResetClearsShinyCheckResolution)
+{
+    auto config = MakeConfig("check_state");
+    SH3DS::Strategy::SoftResetStrategy strategy(config);
+
+    SH3DS::Core::ShinyResult shiny{
+        .verdict = SH3DS::Core::ShinyVerdict::Shiny,
+        .confidence = 0.99,
+        .method = "dominant_color",
+        .details = "shiny",
+        .debugImage = {},
+    };
+    SH3DS::Core::ShinyResult notShiny{
+        .verdict = SH3DS::Core::ShinyVerdict::NotShiny,
+        .confidence = 0.95,
+        .method = "dominant_color",
+        .details = "not shiny",
+        .debugImage = {},
+    };
+
+    // Resolve state once as NotShiny.
+    strategy.Tick("check_state", std::chrono::milliseconds(9999), notShiny);
+
+    // Reset should allow a fresh determination.
     strategy.Reset();
-    auto decision = strategy.Tick("check_state", std::chrono::milliseconds(9999), noResult);
-    EXPECT_EQ(decision.decision.action, SH3DS::Core::HuntAction::CheckShiny);
+    auto decision = strategy.Tick("check_state", std::chrono::milliseconds(9999), shiny);
+    EXPECT_EQ(decision.decision.action, SH3DS::Core::HuntAction::AlertShiny);
 }
 
 TEST(SoftResetStrategy, KnownButtonNameProducesCorrectBits)

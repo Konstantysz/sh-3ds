@@ -182,19 +182,16 @@ TEST(CXXStateTreeFSM, StaysInCurrentStateWhenNoMatch)
     EXPECT_EQ(fsm->GetCurrentState(), "unknown");
 }
 
-TEST(CXXStateTreeFSM, ForceStateChangesImmediately)
-{
-    auto fsm = CreateTestFSM();
-
-    fsm->ForceState("bright_screen");
-    EXPECT_EQ(fsm->GetCurrentState(), "bright_screen");
-}
-
 TEST(CXXStateTreeFSM, ResetGoesBackToInitialState)
 {
     auto fsm = CreateTestFSM();
+    auto darkRoi = CreateDarkROI();
 
-    fsm->ForceState("dark_screen");
+    fsm->Update(darkRoi);
+    auto t = fsm->Update(darkRoi);
+    ASSERT_TRUE(t.has_value());
+    ASSERT_EQ(fsm->GetCurrentState(), "dark_screen");
+
     fsm->Reset();
     EXPECT_EQ(fsm->GetCurrentState(), "unknown");
     EXPECT_TRUE(fsm->GetTransitionHistory().empty());
@@ -458,10 +455,13 @@ TEST(CXXStateTreeFSM, IllegalTransitionResetsPendingState)
 
 TEST(CXXStateTreeFSM, ResetRebuildsSyncedTree)
 {
-    // After ForceState + Reset, the FSM should be able to make legal transitions again.
+    // After a transition + Reset, the FSM should be able to make legal transitions again.
     auto fsm = CreateTestFSM();
+    auto brightRoi = CreateBrightROI();
 
-    fsm->ForceState("bright_screen");
+    fsm->Update(brightRoi);
+    auto toBright = fsm->Update(brightRoi);
+    ASSERT_TRUE(toBright.has_value());
     ASSERT_EQ(fsm->GetCurrentState(), "bright_screen");
 
     fsm->Reset();
@@ -482,15 +482,15 @@ TEST(CXXStateTreeFSM, EmptyTransitionsToBlocksAllOutgoing)
     builder.SetInitialState("state_a");
     builder.SetDebounceFrames(2);
 
-    // state_a detects green and can transition to state_b
+    // state_a detects red and can transition to state_b
     builder.AddState({
         .id = "state_a",
         .transitionsTo = {"state_b"},
         .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
-            .hsvLower = cv::Scalar(55, 200, 200),
-            .hsvUpper = cv::Scalar(65, 255, 255),
+            .hsvLower = cv::Scalar(0, 200, 200),
+            .hsvUpper = cv::Scalar(10, 255, 255),
             .pixelRatioMin = 0.5,
             .pixelRatioMax = 1.0,
             .threshold = 0.5,
@@ -541,8 +541,10 @@ TEST(CXXStateTreeFSM, InitialStateReturnsBuilderInitialState)
     auto fsm = CreateTestFSM();
     EXPECT_EQ(fsm->GetInitialState(), "unknown");
 
-    // Remains stable after ForceState.
-    fsm->ForceState("dark_screen");
+    // Remains stable after transitions.
+    auto darkRoi = CreateDarkROI();
+    fsm->Update(darkRoi);
+    fsm->Update(darkRoi);
     EXPECT_EQ(fsm->GetInitialState(), "unknown");
 
     // Remains stable after Reset.
@@ -550,10 +552,9 @@ TEST(CXXStateTreeFSM, InitialStateReturnsBuilderInitialState)
     EXPECT_EQ(fsm->GetInitialState(), "unknown");
 }
 
-TEST(CXXStateTreeFSM, ForceToInitialStateAllowsNormalDetection)
+TEST(CXXStateTreeFSM, ResetToInitialStateAllowsNormalDetection)
 {
-    // After forcing to InitialState (as the watchdog does), the FSM should be able to
-    // transition normally — confirming the watchdog reset produces a deterministic state.
+    // After resetting to InitialState, the FSM should be able to transition normally.
     auto fsm = CreateTestFSM();
 
     // Drive into dark_screen
@@ -562,8 +563,8 @@ TEST(CXXStateTreeFSM, ForceToInitialStateAllowsNormalDetection)
     fsm->Update(darkRoi);
     ASSERT_EQ(fsm->GetCurrentState(), "dark_screen");
 
-    // Simulate watchdog recovery: force to initial state
-    fsm->ForceState(fsm->GetInitialState());
+    // Simulate watchdog abort path reset
+    fsm->Reset();
     EXPECT_EQ(fsm->GetCurrentState(), "unknown");
 
     // FSM should be able to transition again from unknown
