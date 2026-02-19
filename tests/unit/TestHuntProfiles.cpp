@@ -42,7 +42,7 @@ TEST(HuntProfiles, CreateXYStarterSRSucceedsWithCompleteParams)
     auto params = MakeCompleteParams();
     EXPECT_NO_THROW({
         auto fsm = SH3DS::FSM::HuntProfiles::CreateXYStarterSR(params);
-        EXPECT_EQ(fsm->CurrentState(), "load_game");
+        EXPECT_EQ(fsm->GetCurrentState(), "load_game");
     });
 }
 

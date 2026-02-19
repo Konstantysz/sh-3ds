@@ -56,6 +56,7 @@ namespace SH3DS::App
         ~DebugLayer() override;
 
         void OnUpdate(float deltaTime) override;
+
         void OnRender() override;
 
     private:

@@ -35,7 +35,6 @@ namespace SH3DS::FSM
             std::vector<std::string> transitionsTo; ///< Allowed target states (empty = no transitions)
             int maxDurationS = 60;                  ///< Watchdog timeout
             bool shinyCheck = false;                ///< Whether this state triggers shiny detection
-            bool allowAllTransitions = false; ///< If true, all states are reachable (wildcard for unknown/recovery)
             Core::StateDetectionParams detectionParameters; ///< Detection parameters (from YAML)
         };
 

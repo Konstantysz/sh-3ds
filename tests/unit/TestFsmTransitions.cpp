@@ -486,7 +486,6 @@ TEST(CXXStateTreeFSM, EmptyTransitionsToBlocksAllOutgoing)
     builder.AddState({
         .id = "state_a",
         .transitionsTo = {"state_b"},
-        .allowAllTransitions = false,
         .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
@@ -503,7 +502,6 @@ TEST(CXXStateTreeFSM, EmptyTransitionsToBlocksAllOutgoing)
     builder.AddState({
         .id = "state_b",
         .transitionsTo = {},
-        .allowAllTransitions = false,
         .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
@@ -535,58 +533,6 @@ TEST(CXXStateTreeFSM, EmptyTransitionsToBlocksAllOutgoing)
     EXPECT_FALSE(fsm->Update(greenRoi).has_value());
     EXPECT_FALSE(fsm->Update(greenRoi).has_value());
     EXPECT_EQ(fsm->GetCurrentState(), "state_b");
-}
-
-TEST(CXXStateTreeFSM, AllowAllTransitionsActsAsWildcard)
-{
-    SH3DS::FSM::CXXStateTreeFSM::Builder builder;
-    builder.SetInitialState("any_state");
-    builder.SetDebounceFrames(2);
-
-    // any_state: wildcard — detects nothing itself, but allows all transitions
-    builder.AddState({
-        .id = "any_state",
-        .transitionsTo = {},
-        .allowAllTransitions = true,
-        .detectionParameters = {
-            .roi = "full_screen",
-            .method = "color_histogram",
-            .hsvLower = cv::Scalar(0, 0, 0),
-            .hsvUpper = cv::Scalar(0, 0, 0),
-            .pixelRatioMin = 0.0,
-            .pixelRatioMax = 1.0,
-            .threshold = 999.0,
-            .templatePath = {},
-        },
-    });
-
-    // target: detects dark pixels
-    builder.AddState({
-        .id = "target",
-        .transitionsTo = {},
-        .allowAllTransitions = false,
-        .detectionParameters = {
-            .roi = "full_screen",
-            .method = "color_histogram",
-            .hsvLower = cv::Scalar(0, 0, 0),
-            .hsvUpper = cv::Scalar(180, 50, 50),
-            .pixelRatioMin = 0.8,
-            .pixelRatioMax = 1.0,
-            .threshold = 0.5,
-            .templatePath = {},
-        },
-    });
-
-    auto fsm = builder.Build();
-    EXPECT_EQ(fsm->GetCurrentState(), "any_state");
-
-    // Dark frames should transition to "target" even though any_state has empty transitionsTo,
-    // because allowAllTransitions = true makes all states reachable.
-    auto darkRoi = CreateDarkROI();
-    fsm->Update(darkRoi);
-    auto t = fsm->Update(darkRoi);
-    ASSERT_TRUE(t.has_value());
-    EXPECT_EQ(t->to, "target");
 }
 
 TEST(CXXStateTreeFSM, InitialStateReturnsBuilderInitialState)

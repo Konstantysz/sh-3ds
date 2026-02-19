@@ -21,7 +21,7 @@ namespace
             return std::nullopt;
         }
 
-        SH3DS::Core::GameState CurrentState() const override
+        const SH3DS::Core::GameState &GetCurrentState() const override
         {
             return currentState;
         }
@@ -51,13 +51,14 @@ namespace
             return history;
         }
 
-        SH3DS::Core::GameState GetInitialState() const override
+        const SH3DS::Core::GameState &GetInitialState() const override
         {
-            return "load_game";
+            return initialState;
         }
 
         bool stuck = false;
         std::string currentState = "load_game";
+        std::string initialState = "load_game";
         std::vector<SH3DS::Core::StateTransition> history;
     };
 

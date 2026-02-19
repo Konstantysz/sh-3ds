@@ -25,30 +25,16 @@ The FSM layer uses a hybrid architecture:
 ```cpp
 struct StateConfig {
     std::string id;
-    std::vector<std::string> transitionsTo;  // empty + allowAllTransitions=false → terminal state
+    std::vector<std::string> transitionsTo;  // empty → terminal state
     int maxDurationS = 60;                   // watchdog threshold for IsStuck()
     bool shinyCheck = false;                 // advisory flag (not enforced by FSM itself)
-    bool allowAllTransitions = false;        // true → wildcard, all states reachable (for unknown/recovery)
     Core::StateDetectionParams detection;    // ROI name, method, HSV bounds, pixelRatio, threshold
 };
 ```
 
-## Transition Semantics (CRITICAL)
-
-| `allowAllTransitions` | `transitionsTo` | Meaning |
-|---|---|---|
-| `false` | non-empty | Only listed states are candidates |
-| `false` | empty | **Terminal state** — no outgoing transitions, FSM stays |
-| `true` | any | **Wildcard** — all states are candidates (used for `unknown`/recovery) |
-
-**Do NOT use `allowAllTransitions=false` + empty `transitionsTo` as a way to make a wildcard.**
-That is a terminal/sink state. Use `allowAllTransitions=true` for wildcards.
-
 ## How Detection Works (EvaluateRules)
 
-1. Build candidate set from current state's reachability:
-   - If `allowAllTransitions=true`: all states are candidates
-   - Otherwise: `{currentState} ∪ transitionsTo`
+1. Build candidate set from current state's reachability
 2. For each candidate, look up its `detection.roi` in the `ROISet`
 3. Run `color_histogram` or `template_match` → confidence score
 4. Pick highest-confidence state that exceeds its `threshold`
@@ -148,7 +134,6 @@ fsm_states:
 - Reachability filter (blocks illegal, allows legal)
 - `ResetRebuildsSyncedTree` — ForceState + Reset + legal transition still fires
 - `EmptyTransitionsToBlocksAllOutgoing` — terminal state stays terminal
-- `AllowAllTransitionsActsAsWildcard` — wildcard state reaches any target
 
 `TestHuntProfiles.cpp` covers:
 - `CreateXYStarterSR` succeeds with complete params

@@ -215,7 +215,7 @@ namespace SH3DS::FSM
         std::vector<std::string> candidates;
 
         const auto *currentConfig = FindStateConfig(currentState);
-        bool constrained = currentConfig && !currentConfig->allowAllTransitions;
+        const bool constrained = currentConfig != nullptr;
         if (constrained)
         {
             candidates.push_back(currentState);
