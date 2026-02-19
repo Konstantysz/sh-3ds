@@ -1,3 +1,7 @@
 [submodule "external/kappa-core"]
 	path = external/kappa-core
 	url = https://github.com/Konstantysz/kappa-core.git
+
+[submodule "external/CXXStateTree"]
+	path = external/CXXStateTree
+	url = https://github.com/ZigRazor/CXXStateTree.git

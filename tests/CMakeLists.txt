@@ -10,6 +10,18 @@ function(sh3ds_add_test test_name test_source)
       GTest::gtest_main
   )
   sh3ds_set_warnings(${test_name})
+
+  if(test_source MATCHES "^integration/")
+    set(_folder "Tests/Integration")
+  else()
+    set(_folder "Tests/Unit")
+  endif()
+  sh3ds_configure_visual_studio_target(
+    ${test_name}
+    "${_folder}"
+    BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
+  )
+
   gtest_discover_tests(${test_name})
 endfunction()
 
@@ -33,7 +45,10 @@ sh3ds_add_test(TestHuntProfiles unit/TestHuntProfiles.cpp)
 target_link_libraries(TestHuntProfiles PRIVATE SH3DS::FSM)
 
 sh3ds_add_test(TestSoftResetStrategy unit/TestSoftResetStrategy.cpp)
-target_link_libraries(TestSoftResetStrategy PRIVATE SH3DS::Strategy)
+target_link_libraries(TestSoftResetStrategy PRIVATE SH3DS::Strategy SH3DS::Input)
+
+sh3ds_add_test(TestOrchestrator unit/TestOrchestrator.cpp)
+target_link_libraries(TestOrchestrator PRIVATE SH3DS::Pipeline SH3DS::Core SH3DS::Capture SH3DS::FSM SH3DS::Strategy)
 
 sh3ds_add_test(TestShinyDetector unit/TestShinyDetector.cpp)
 target_link_libraries(TestShinyDetector PRIVATE SH3DS::Vision)

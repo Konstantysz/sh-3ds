@@ -78,9 +78,12 @@ int main(int argc, char *argv[])
 
         auto screenDetector = SH3DS::Capture::ScreenDetector::CreateScreenDetector();
 
-        auto preprocessor = std::make_unique<SH3DS::Capture::FramePreprocessor>(
-            hardwareConfig.screenCalibration, unifiedConfig.rois);
+        auto preprocessor =
+            std::make_unique<SH3DS::Capture::FramePreprocessor>(hardwareConfig.screenCalibration, unifiedConfig.rois);
 
+        // TODO(hunt-profile-dispatch): Currently only XY Starter SR is supported. When multi-profile
+        // support is needed, add a `hunt_profile` key to the unified hunt YAML and dispatch here via
+        // a lookup table (e.g. "xy_starter_sr" -> HuntProfiles::CreateXYStarterSR).
         auto fsm = SH3DS::FSM::HuntProfiles::CreateXYStarterSR(unifiedConfig.fsmParams);
 
         std::unique_ptr<SH3DS::Vision::ShinyDetector> detector;
@@ -90,9 +93,16 @@ int main(int argc, char *argv[])
                 unifiedConfig.shinyDetector, unifiedConfig.huntId);
         }
 
-        auto strategy = std::make_unique<SH3DS::Strategy::SoftResetStrategy>(
-            SH3DS::Core::ToHuntConfig(unifiedConfig));
+        auto strategy = std::make_unique<SH3DS::Strategy::SoftResetStrategy>(SH3DS::Core::ToHuntConfig(unifiedConfig));
         auto input = SH3DS::Input::MockInputAdapter::CreateMockInputAdapter();
+
+        // Route the configured shiny ROI from the hunt config into the orchestrator.
+        // TODO(hunt-profile-dispatch): When multi-profile support is added, derive this from
+        // the hunt profile factory rather than reading it directly from UnifiedHuntConfig.
+        if (!unifiedConfig.shinyDetector.roi.empty())
+        {
+            hardwareConfig.orchestrator.shinyRoi = unifiedConfig.shinyDetector.roi;
+        }
 
         SH3DS::Pipeline::Orchestrator orchestrator(std::move(frameSource),
             std::move(screenDetector),

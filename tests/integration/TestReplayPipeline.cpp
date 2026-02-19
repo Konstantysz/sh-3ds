@@ -40,7 +40,7 @@ protected:
             .id = "unknown",
             .transitionsTo = {"dark_screen", "bright_screen"},
             .maxDurationS = 120,
-            .detection = {
+            .detectionParameters = {
                 .roi = "full_screen",
                 .method = "color_histogram",
                 .hsvLower = cv::Scalar(0, 0, 0),
@@ -56,7 +56,7 @@ protected:
             .id = "dark_screen",
             .transitionsTo = {"bright_screen"},
             .maxDurationS = 30,
-            .detection = {
+            .detectionParameters = {
                 .roi = "full_screen",
                 .method = "color_histogram",
                 .hsvLower = cv::Scalar(0, 0, 0),
@@ -73,7 +73,7 @@ protected:
             .transitionsTo = {"dark_screen"},
             .maxDurationS = 30,
             .shinyCheck = true,
-            .detection = {
+            .detectionParameters = {
                 .roi = "full_screen",
                 .method = "color_histogram",
                 .hsvLower = cv::Scalar(0, 0, 200),
@@ -122,7 +122,7 @@ TEST_F(ReplayPipelineTest, FullPipelineDarkToBrightTransition)
         ASSERT_TRUE(roiSet.has_value());
         fsm->Update(*roiSet);
     }
-    EXPECT_EQ(fsm->CurrentState(), "dark_screen");
+    EXPECT_EQ(fsm->GetCurrentState(), "dark_screen");
 
     // Simulate bright frames (title screen / reveal)
     for (int i = 0; i < 3; ++i)
@@ -132,12 +132,12 @@ TEST_F(ReplayPipelineTest, FullPipelineDarkToBrightTransition)
         ASSERT_TRUE(roiSet.has_value());
         fsm->Update(*roiSet);
     }
-    EXPECT_EQ(fsm->CurrentState(), "bright_screen");
+    EXPECT_EQ(fsm->GetCurrentState(), "bright_screen");
 
     // Verify history
-    ASSERT_GE(fsm->History().size(), 2u);
-    EXPECT_EQ(fsm->History()[0].to, "dark_screen");
-    EXPECT_EQ(fsm->History()[1].to, "bright_screen");
+    ASSERT_GE(fsm->GetTransitionHistory().size(), 2u);
+    EXPECT_EQ(fsm->GetTransitionHistory()[0].to, "dark_screen");
+    EXPECT_EQ(fsm->GetTransitionHistory()[1].to, "bright_screen");
 }
 
 TEST_F(ReplayPipelineTest, ShinyDetectorIntegration)

@@ -19,8 +19,15 @@ namespace
 
         SH3DS::Core::HuntDetectionParams params;
         params.debounceFrames = 2;
-        for (const auto &id : { "load_game", "game_start", "cutscene_start", "cutscene", "starter_pick",
-                 "nickname_prompt", "post_selection", "cutscene_end", "party_menu", "pokemon_summary",
+        for (const auto &id : { "load_game",
+                 "game_start",
+                 "cutscene_part_1",
+                 "starter_pick",
+                 "cutscene_part_2",
+                 "nickname_prompt",
+                 "cutscene_part_3",
+                 "party_menu",
+                 "pokemon_summary",
                  "soft_reset" })
         {
             params.stateParams[id] = defaultSp;

@@ -12,9 +12,8 @@ namespace SH3DS::FSM
             auto it = params.stateParams.find(stateId);
             if (it == params.stateParams.end())
             {
-                throw std::runtime_error(
-                    "HuntProfiles: missing detection params for required state '" + stateId
-                    + "'. Check fsm_states in your hunt config YAML.");
+                throw std::runtime_error("HuntProfiles: missing detection params for required state '" + stateId
+                                         + "'. Check fsm_states in your hunt config YAML.");
             }
             return it->second;
         }
@@ -28,80 +27,73 @@ namespace SH3DS::FSM
 
         builder.AddState({
             .id = "load_game",
-            .transitionsTo = {"game_start", "soft_reset"},
+            .transitionsTo = { "game_start" },
             .maxDurationS = 15,
-            .detection = RequireState(params, "load_game"),
+            .detectionParameters = RequireState(params, "load_game"),
         });
 
         builder.AddState({
             .id = "game_start",
-            .transitionsTo = {"cutscene_start", "soft_reset"},
+            .transitionsTo = { "cutscene_part_1" },
             .maxDurationS = 10,
-            .detection = RequireState(params, "game_start"),
+            .detectionParameters = RequireState(params, "game_start"),
         });
 
         builder.AddState({
-            .id = "cutscene_start",
-            .transitionsTo = {"cutscene", "soft_reset"},
-            .maxDurationS = 10,
-            .detection = RequireState(params, "cutscene_start"),
-        });
-
-        builder.AddState({
-            .id = "cutscene",
-            .transitionsTo = {"starter_pick", "soft_reset"},
-            .maxDurationS = 30,
-            .detection = RequireState(params, "cutscene"),
+            .id = "cutscene_part_1",
+            .transitionsTo = { "starter_pick" },
+            .maxDurationS = 120,
+            .detectionParameters = RequireState(params, "cutscene_part_1"),
         });
 
         builder.AddState({
             .id = "starter_pick",
-            .transitionsTo = {"nickname_prompt", "soft_reset"},
+            .transitionsTo = { "cutscene_part_2" },
             .maxDurationS = 15,
-            .detection = RequireState(params, "starter_pick"),
+            .detectionParameters = RequireState(params, "starter_pick"),
+        });
+
+        builder.AddState({
+            .id = "cutscene_part_2",
+            .transitionsTo = { "nickname_prompt" },
+            .maxDurationS = 120,
+            .detectionParameters = RequireState(params, "cutscene_part_2"),
         });
 
         builder.AddState({
             .id = "nickname_prompt",
-            .transitionsTo = {"post_selection", "soft_reset"},
+            .transitionsTo = { "cutscene_part_3" },
             .maxDurationS = 10,
-            .detection = RequireState(params, "nickname_prompt"),
+            .detectionParameters = RequireState(params, "nickname_prompt"),
         });
 
         builder.AddState({
-            .id = "post_selection",
-            .transitionsTo = {"cutscene_end", "soft_reset"},
-            .maxDurationS = 15,
-            .detection = RequireState(params, "post_selection"),
-        });
-
-        builder.AddState({
-            .id = "cutscene_end",
-            .transitionsTo = {"party_menu", "soft_reset"},
-            .maxDurationS = 15,
-            .detection = RequireState(params, "cutscene_end"),
+            .id = "cutscene_part_3",
+            .transitionsTo = { "party_menu" },
+            .maxDurationS = 120,
+            .detectionParameters = RequireState(params, "cutscene_part_3"),
         });
 
         builder.AddState({
             .id = "party_menu",
-            .transitionsTo = {"pokemon_summary", "soft_reset"},
+            .transitionsTo = { "pokemon_summary" },
             .maxDurationS = 10,
-            .detection = RequireState(params, "party_menu"),
+            .detectionParameters = RequireState(params, "party_menu"),
         });
 
         builder.AddState({
             .id = "pokemon_summary",
-            .transitionsTo = {"soft_reset"},
+            .transitionsTo = { "soft_reset" },
             .maxDurationS = 20,
             .shinyCheck = true,
-            .detection = RequireState(params, "pokemon_summary"),
+            .detectionParameters = RequireState(params, "pokemon_summary"),
         });
 
         builder.AddState({
             .id = "soft_reset",
-            .transitionsTo = {"load_game"},
+            .transitionsTo = { "load_game" },
             .maxDurationS = 15,
-            .detection = RequireState(params, "soft_reset"),
+            .detectionParameters = RequireState(params, "soft_reset"),
         });
 
         return builder.Build();

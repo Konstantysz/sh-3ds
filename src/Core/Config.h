@@ -66,6 +66,7 @@ namespace SH3DS::Core
         std::string logFile;                     ///< Path to log file
         int logRotationMb = 50;                  ///< Log rotation size in megabytes
         int logMaxFiles = 5;                     ///< Maximum number of log files
+        std::string shinyRoi = "pokemon_sprite"; ///< ROI name used for shiny detection (from hunt config)
     };
 
     /**
@@ -252,7 +253,7 @@ namespace SH3DS::Core
     struct HuntDetectionParams
     {
         std::map<std::string, StateDetectionParams> stateParams; ///< Detection params per state
-        int debounceFrames = 3;                                   ///< Frame debounce count
+        int debounceFrames = 3;                                  ///< Frame debounce count
     };
 
     /**

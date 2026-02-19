@@ -15,9 +15,8 @@ namespace SH3DS::Capture
         return (c[0] == c[1] && c[1] == c[2] && c[2] == c[3]);
     }
 
-    static bool CornersEqual(const std::array<cv::Point2f, 4> &a,
-        const std::array<cv::Point2f, 4> &b,
-        float epsilon = 0.01f)
+    static bool
+        CornersEqual(const std::array<cv::Point2f, 4> &a, const std::array<cv::Point2f, 4> &b, float epsilon = 0.01f)
     {
         for (size_t i = 0; i < 4; ++i)
         {

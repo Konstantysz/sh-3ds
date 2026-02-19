@@ -40,16 +40,16 @@ namespace SH3DS::Capture
      */
     struct ScreenDetectorConfig
     {
-        int brightnessThreshold = 80;       ///< Minimum brightness for screen pixels (Otsu fallback)
-        double minAreaFraction = 0.02;      ///< Minimum contour area as fraction of frame area
-        double maxAreaFraction = 0.5;       ///< Maximum contour area as fraction of frame area
-        double topAspectRatio = Core::kTopScreenAspectRatio;       ///< Expected top screen aspect ratio (400/240)
+        int brightnessThreshold = 80;                        ///< Minimum brightness for screen pixels (Otsu fallback)
+        double minAreaFraction = 0.02;                       ///< Minimum contour area as fraction of frame area
+        double maxAreaFraction = 0.5;                        ///< Maximum contour area as fraction of frame area
+        double topAspectRatio = Core::kTopScreenAspectRatio; ///< Expected top screen aspect ratio (400/240)
         double bottomAspectRatio = Core::kBottomScreenAspectRatio; ///< Expected bottom screen aspect ratio (320/240)
-        double aspectRatioTolerance = 0.25; ///< Allowable deviation from expected aspect ratio
-        int smoothingWindowSize = 10;       ///< EMA smoothing window size in frames
-        int morphKernelSize = 5;            ///< Kernel size for morphological operations
-        double polyEpsilonFraction = 0.02;  ///< approxPolyDP epsilon as fraction of perimeter
-        int calibrationFrames = 15;         ///< Minimum frames in rolling window before calibration can lock
+        double aspectRatioTolerance = 0.25;                        ///< Allowable deviation from expected aspect ratio
+        int smoothingWindowSize = 10;                              ///< EMA smoothing window size in frames
+        int morphKernelSize = 5;                                   ///< Kernel size for morphological operations
+        double polyEpsilonFraction = 0.02;                         ///< approxPolyDP epsilon as fraction of perimeter
+        int calibrationFrames = 15; ///< Minimum frames in rolling window before calibration can lock
     };
 
     /**
@@ -123,11 +123,11 @@ namespace SH3DS::Capture
         float splitPointY = -1.0f; ///< Vertical midpoint between top/bottom screens (-1 = unknown)
 
         // Calibration state
-        bool calibrated = false;                                     ///< Whether calibration is complete
-        static constexpr int kCalibrationWindowSize = 20;            ///< Rolling window size
-        static constexpr double kCalibrationSuccessThreshold = 0.8;  ///< Required success rate (80%)
-        std::deque<bool> calibrationWindow;                          ///< Rolling window of detection success/failure
-        ScreenDetectionResult calibratedResult;                      ///< Locked result after calibration
+        bool calibrated = false;                                    ///< Whether calibration is complete
+        static constexpr int kCalibrationWindowSize = 20;           ///< Rolling window size
+        static constexpr double kCalibrationSuccessThreshold = 0.8; ///< Required success rate (80%)
+        std::deque<bool> calibrationWindow;                         ///< Rolling window of detection success/failure
+        ScreenDetectionResult calibratedResult;                     ///< Locked result after calibration
 
         // Thread safety
         mutable std::mutex mutex; ///< Guards mutable state in Detect() and Reset()

@@ -184,13 +184,13 @@ namespace SH3DS::App
             if (dualResult->topRois)
             {
                 fsm->Update(*dualResult->topRois);
-                const std::string newState = fsm->CurrentState();
+                const std::string newState = fsm->GetCurrentState();
                 if (newState != currentStateName)
                 {
                     currentShinyResult = std::nullopt; // clear stale result on state change
                     currentStateName = newState;
                 }
-                auto ms = fsm->TimeInCurrentState();
+                auto ms = fsm->GetTimeInCurrentState();
                 timeInState = static_cast<float>(ms.count()) / 1000.0f;
             }
 

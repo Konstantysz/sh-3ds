@@ -3,17 +3,12 @@
 #include "Kappa/Logger.h"
 #include "Vision/TemplateMatcher.h"
 
-#include <CXXStateTree/StateTree.h>
-
-#include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
 #include <algorithm>
 
 namespace SH3DS::FSM
 {
-    // ── Builder ─────────────────────────────────────────────────────────────
-
     CXXStateTreeFSM::Builder &CXXStateTreeFSM::Builder::SetInitialState(const std::string &state)
     {
         initialState = state;
@@ -28,7 +23,7 @@ namespace SH3DS::FSM
 
     CXXStateTreeFSM::Builder &CXXStateTreeFSM::Builder::AddState(StateConfig config)
     {
-        states.push_back(std::move(config));
+        stateConfigs.push_back(std::move(config));
         return *this;
     }
 
@@ -39,10 +34,10 @@ namespace SH3DS::FSM
         CXXStateTree::StateTree::Builder treeBuilder;
         treeBuilder.initial(initialState);
 
-        for (const auto &sc : states)
+        for (const auto &stateConfig : stateConfigs)
         {
-            treeBuilder.state(sc.id, [&sc](CXXStateTree::State &s) {
-                for (const auto &target : sc.transitionsTo)
+            treeBuilder.state(stateConfig.id, [&stateConfig](CXXStateTree::State &s) {
+                for (const auto &target : stateConfig.transitionsTo)
                 {
                     s.on("goto_" + target, target);
                 }
@@ -52,130 +47,129 @@ namespace SH3DS::FSM
         auto stateTree = std::make_unique<CXXStateTree::StateTree>(treeBuilder.build());
 
         return std::unique_ptr<CXXStateTreeFSM>(
-            new CXXStateTreeFSM(std::move(stateTree), initialState, debounceFrames, std::move(states)));
+            new CXXStateTreeFSM(std::move(stateTree), initialState, debounceFrames, std::move(stateConfigs)));
     }
-
-    // ── Constructor / Destructor ────────────────────────────────────────────
 
     CXXStateTreeFSM::CXXStateTreeFSM(std::unique_ptr<CXXStateTree::StateTree> tree,
         std::string initialState,
         int debounceFrames,
         std::vector<StateConfig> stateConfigs)
-        : tree(std::move(tree))
-        , initialState(std::move(initialState))
-        , debounceFrames(debounceFrames)
-        , stateConfigs(std::move(stateConfigs))
+        : tree(std::move(tree)),
+          initialState(std::move(initialState)),
+          debounceFrames(debounceFrames),
+          stateConfigs(std::move(stateConfigs))
     {
         Reset();
     }
 
-    CXXStateTreeFSM::~CXXStateTreeFSM() = default;
-
-    // ── GameStateFSM Interface ──────────────────────────────────────────────
-
     std::optional<Core::StateTransition> CXXStateTreeFSM::Update(const Core::ROISet &rois)
     {
-        auto result = EvaluateRules(rois);
-
-        if (result.state.empty() || result.confidence < 0.01)
+        const auto bestCandidateState = DetectBestCandidateState(rois);
+        if (bestCandidateState.state.empty() || bestCandidateState.confidence < 0.01)
         {
             pendingFrameCount = 0;
             return std::nullopt;
         }
 
         // Debounce: require N consecutive frames detecting the same new state
-        if (result.state != currentState)
-        {
-            if (result.state == pendingState)
-            {
-                ++pendingFrameCount;
-            }
-            else
-            {
-                pendingState = result.state;
-                pendingFrameCount = 1;
-            }
-
-            if (pendingFrameCount >= debounceFrames && pendingState != currentState)
-            {
-                // Validate transition via CXXStateTree graph
-                bool allowed = true;
-                const auto *config = FindStateConfig(currentState);
-
-                if (config && !config->transitionsTo.empty())
-                {
-                    auto &allowedTargets = config->transitionsTo;
-                    if (std::find(allowedTargets.begin(), allowedTargets.end(), pendingState) == allowedTargets.end())
-                    {
-                        LOG_WARN("FSM: Illegal transition {} -> {}! (ignoring)", currentState, pendingState);
-                        allowed = false;
-                    }
-                }
-
-                if (allowed)
-                {
-                    Core::StateTransition transition{
-                        .from = currentState, .to = pendingState, .timestamp = std::chrono::steady_clock::now()
-                    };
-
-                    // Sync CXXStateTree graph state
-                    try
-                    {
-                        tree->send("goto_" + pendingState);
-                    }
-                    catch (const std::runtime_error &e)
-                    {
-                        LOG_WARN("FSM: CXXStateTree rejected transition {} -> {}: {}",
-                            currentState,
-                            pendingState,
-                            e.what());
-                    }
-
-                    currentState = pendingState;
-                    stateEnteredAt = transition.timestamp;
-                    pendingFrameCount = 0;
-
-                    RecordTransition(transition);
-
-                    return transition;
-                }
-                else
-                {
-                    pendingState.clear();
-                    pendingFrameCount = 0;
-                }
-            }
-        }
-        else
+        if (bestCandidateState.state == currentState)
         {
             pendingState.clear();
             pendingFrameCount = 0;
+            return std::nullopt;
         }
 
-        return std::nullopt;
+        if (bestCandidateState.state == pendingState)
+        {
+            ++pendingFrameCount;
+        }
+        else
+        {
+            pendingState = bestCandidateState.state;
+            pendingFrameCount = 1;
+        }
+
+        if (pendingFrameCount < debounceFrames || pendingState == currentState)
+        {
+            return std::nullopt;
+        }
+
+        bool isTransitionAllowed = true;
+        const auto *config = FindStateConfig(currentState);
+        if (config && !config->transitionsTo.empty())
+        {
+            const auto &allowedTargets = config->transitionsTo;
+            if (std::find(allowedTargets.begin(), allowedTargets.end(), pendingState) == allowedTargets.end())
+            {
+                LOG_WARN("FSM: Illegal transition {} -> {}! (ignoring)", currentState, pendingState);
+                isTransitionAllowed = false;
+            }
+        }
+
+        if (!isTransitionAllowed)
+        {
+            pendingState.clear();
+            pendingFrameCount = 0;
+            return std::nullopt;
+        }
+
+        Core::StateTransition transition{
+            .from = currentState, .to = pendingState, .timestamp = std::chrono::steady_clock::now()
+        };
+
+        try
+        {
+            tree->send("goto_" + pendingState);
+        }
+        catch (const std::runtime_error &e)
+        {
+            LOG_ERROR("FSM: CXXStateTree rejected transition {} -> {}: {}", currentState, pendingState, e.what());
+
+            pendingState.clear();
+            pendingFrameCount = 0;
+            return std::nullopt;
+        }
+
+        currentState = pendingState;
+        stateEnteredAt = transition.timestamp;
+        pendingFrameCount = 0;
+
+        RecordTransition(transition);
+
+        return transition;
     }
 
-    Core::GameState CXXStateTreeFSM::CurrentState() const
+    void CXXStateTreeFSM::Reset()
     {
-        return currentState;
-    }
+        CXXStateTree::StateTree::Builder treeBuilder;
+        treeBuilder.initial(initialState);
+        for (const auto &stateConfig : stateConfigs)
+        {
+            treeBuilder.state(stateConfig.id, [&stateConfig](CXXStateTree::State &s) {
+                for (const auto &target : stateConfig.transitionsTo)
+                {
+                    s.on("goto_" + target, target);
+                }
+            });
+        }
+        tree = std::make_unique<CXXStateTree::StateTree>(treeBuilder.build());
 
-    std::chrono::milliseconds CXXStateTreeFSM::TimeInCurrentState() const
-    {
-        auto now = std::chrono::steady_clock::now();
-        return std::chrono::duration_cast<std::chrono::milliseconds>(now - stateEnteredAt);
+        currentState = initialState;
+        stateEnteredAt = std::chrono::steady_clock::now();
+        pendingState.clear();
+        pendingFrameCount = 0;
+        transitionHistory.clear();
     }
 
     bool CXXStateTreeFSM::IsStuck() const
     {
         const auto *config = FindStateConfig(currentState);
-        if (config)
+        if (!config)
         {
-            auto maxDuration = std::chrono::seconds(config->maxDurationS);
-            return TimeInCurrentState() > maxDuration;
+            return GetTimeInCurrentState() > std::chrono::seconds(120);
         }
-        // Unknown state — use a default timeout
-        return TimeInCurrentState() > std::chrono::seconds(120);
+
+        return GetTimeInCurrentState() > std::chrono::seconds(config->maxDurationS);
     }
 
     void CXXStateTreeFSM::ForceState(const Core::GameState &state)
@@ -192,45 +186,32 @@ namespace SH3DS::FSM
         RecordTransition(transition);
     }
 
-    void CXXStateTreeFSM::Reset()
+    const Core::GameState &CXXStateTreeFSM::GetCurrentState() const
     {
-        // Rebuild the CXXStateTree so its internal state is back at initialState,
-        // not wherever ForceState or a failed send() left it.
-        CXXStateTree::StateTree::Builder treeBuilder;
-        treeBuilder.initial(initialState);
-        for (const auto &sc : stateConfigs)
-        {
-            treeBuilder.state(sc.id, [&sc](CXXStateTree::State &s) {
-                for (const auto &target : sc.transitionsTo)
-                {
-                    s.on("goto_" + target, target);
-                }
-            });
-        }
-        tree = std::make_unique<CXXStateTree::StateTree>(treeBuilder.build());
-
-        currentState = initialState;
-        stateEnteredAt = std::chrono::steady_clock::now();
-        pendingState.clear();
-        pendingFrameCount = 0;
-        history.clear();
+        return currentState;
     }
 
-    const std::vector<Core::StateTransition> &CXXStateTreeFSM::History() const
+    const Core::GameState &CXXStateTreeFSM::GetInitialState() const
     {
-        return history;
+        return initialState;
     }
 
-    // ── Detection Evaluation ────────────────────────────────────────────────
+    std::chrono::milliseconds CXXStateTreeFSM::GetTimeInCurrentState() const
+    {
+        auto now = std::chrono::steady_clock::now();
+        return std::chrono::duration_cast<std::chrono::milliseconds>(now - stateEnteredAt);
+    }
 
-    CXXStateTreeFSM::DetectionResult CXXStateTreeFSM::EvaluateRules(const Core::ROISet &rois) const
+    const std::vector<Core::StateTransition> &CXXStateTreeFSM::GetTransitionHistory() const
+    {
+        return transitionHistory;
+    }
+
+    CXXStateTreeFSM::DetectionResult CXXStateTreeFSM::DetectBestCandidateState(const Core::ROISet &rois) const
     {
         LOG_DEBUG("FSM: EvaluateRules called with {} ROIs, {} states", rois.size(), stateConfigs.size());
         DetectionResult bestResult;
 
-        // Build candidate set: currentState + its allowed transitions.
-        // allowAllTransitions=true means any state can be detected (used for unknown/recovery states).
-        // Empty transitionsTo with allowAllTransitions=false means no outgoing transitions allowed.
         std::vector<std::string> candidates;
 
         const auto *currentConfig = FindStateConfig(currentState);
@@ -242,18 +223,18 @@ namespace SH3DS::FSM
                 candidates.end(), currentConfig->transitionsTo.begin(), currentConfig->transitionsTo.end());
         }
 
-        for (const auto &sc : stateConfigs)
+        for (const auto &stateConfig : stateConfigs)
         {
             if (constrained)
             {
-                if (std::find(candidates.begin(), candidates.end(), sc.id) == candidates.end())
+                if (std::find(candidates.begin(), candidates.end(), stateConfig.id) == candidates.end())
                 {
                     continue;
                 }
             }
 
-            const auto &params = sc.detection;
-            auto it = rois.find(params.roi);
+            const auto &stateDetectionParameters = stateConfig.detectionParameters;
+            auto it = rois.find(stateDetectionParameters.roi);
             if (it == rois.end() || it->second.empty())
             {
                 continue;
@@ -262,24 +243,25 @@ namespace SH3DS::FSM
             const cv::Mat &roiMat = it->second;
             double confidence = 0.0;
 
-            if (params.method == "template_match")
+            if (stateDetectionParameters.method == "template_match")
             {
-                confidence = EvaluateTemplateMatch(roiMat, params);
+                confidence = EvaluateTemplateMatch(roiMat, stateDetectionParameters);
             }
-            else if (params.method == "color_histogram" || params.method == "pixel_ratio")
+            else if (stateDetectionParameters.method == "color_histogram"
+                     || stateDetectionParameters.method == "pixel_ratio")
             {
-                confidence = EvaluateColorHistogram(roiMat, params);
+                confidence = EvaluateColorHistogram(roiMat, stateDetectionParameters);
             }
 
             LOG_DEBUG("FSM: Evaluating Rule for state '{}' on ROI '{}': confidence={:.3f} (threshold={:.2f})",
-                sc.id,
-                params.roi,
+                stateConfig.id,
+                stateDetectionParameters.roi,
                 confidence,
-                params.threshold);
+                stateDetectionParameters.threshold);
 
-            if (confidence >= params.threshold && confidence > bestResult.confidence)
+            if (confidence >= stateDetectionParameters.threshold && confidence > bestResult.confidence)
             {
-                bestResult.state = sc.id;
+                bestResult.state = stateConfig.id;
                 bestResult.confidence = confidence;
             }
         }
@@ -287,46 +269,47 @@ namespace SH3DS::FSM
         return bestResult;
     }
 
-    double CXXStateTreeFSM::EvaluateTemplateMatch(const cv::Mat &roi, const Core::StateDetectionParams &params) const
+    double CXXStateTreeFSM::EvaluateTemplateMatch(const cv::Mat &roi,
+        const Core::StateDetectionParams &stateDetectionParameters) const
     {
-        if (params.templatePath.empty())
+        if (stateDetectionParameters.templatePath.empty())
         {
             return 0.0;
         }
 
-        return templateMatcher.Match(roi, params.templatePath);
+        return templateMatcher.Match(roi, stateDetectionParameters.templatePath);
     }
 
-    double CXXStateTreeFSM::EvaluateColorHistogram(const cv::Mat &roi, const Core::StateDetectionParams &params) const
+    double CXXStateTreeFSM::EvaluateColorHistogram(const cv::Mat &roi,
+        const Core::StateDetectionParams &stateDetectionParameters) const
     {
         cv::Mat hsv;
         cv::cvtColor(roi, hsv, cv::COLOR_BGR2HSV);
 
         cv::Mat mask;
-        cv::inRange(hsv, params.hsvLower, params.hsvUpper, mask);
+        cv::inRange(hsv, stateDetectionParameters.hsvLower, stateDetectionParameters.hsvUpper, mask);
 
-        double pixelRatio = cv::countNonZero(mask) / static_cast<double>(roi.total());
+        const double pixelRatio = cv::countNonZero(mask) / static_cast<double>(roi.total());
 
-        if (pixelRatio >= params.pixelRatioMin && pixelRatio <= params.pixelRatioMax)
+        if (pixelRatio < stateDetectionParameters.pixelRatioMin || pixelRatio > stateDetectionParameters.pixelRatioMax)
         {
-            // Confidence is 1.0 at midpoint, 0.5 at boundaries of [min, max] range
-            double midpoint = (params.pixelRatioMin + params.pixelRatioMax) / 2.0;
-            double halfRange = (params.pixelRatioMax - params.pixelRatioMin) / 2.0;
-            double distance = std::abs(pixelRatio - midpoint);
-            return halfRange > 0.0 ? 1.0 - 0.5 * (distance / halfRange) : 1.0;
+            return 0.0;
         }
 
-        return 0.0;
-    }
+        const double midpoint = (stateDetectionParameters.pixelRatioMin + stateDetectionParameters.pixelRatioMax) / 2.0;
+        const double halfRange =
+            (stateDetectionParameters.pixelRatioMax - stateDetectionParameters.pixelRatioMin) / 2.0;
+        const double distance = std::abs(pixelRatio - midpoint);
 
-    // ── Helpers ─────────────────────────────────────────────────────────────
+        return halfRange > 0.0 ? 1.0 - 0.5 * (distance / halfRange) : 1.0;
+    }
 
     void CXXStateTreeFSM::RecordTransition(const Core::StateTransition &transition)
     {
-        history.push_back(transition);
-        if (history.size() > 1000)
+        transitionHistory.push_back(transition);
+        if (transitionHistory.size() > 1000)
         {
-            history.erase(history.begin(), history.begin() + 500);
+            transitionHistory.erase(transitionHistory.begin(), transitionHistory.begin() + 500);
         }
     }
 

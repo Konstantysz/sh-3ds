@@ -7,3 +7,8 @@ target_include_directories(
 )
 
 sh3ds_set_warnings(sh3ds_input)
+sh3ds_configure_visual_studio_target(
+  sh3ds_input
+  "Libraries"
+  BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
+)

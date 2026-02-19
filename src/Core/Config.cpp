@@ -45,8 +45,8 @@ namespace SH3DS::Core
             }
             if (sp.threshold <= 0.0 || sp.threshold > 1.0)
             {
-                LOG_WARN("Config: state '{}' threshold ({:.3f}) is outside (0,1] — clamping to 0.5",
-                    stateId, sp.threshold);
+                LOG_WARN(
+                    "Config: state '{}' threshold ({:.3f}) is outside (0,1] — clamping to 0.5", stateId, sp.threshold);
                 sp.threshold = 0.5;
             }
             for (int ch = 0; ch < 3; ++ch)

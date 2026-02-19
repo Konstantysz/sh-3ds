@@ -22,7 +22,7 @@ namespace
             .id = "unknown",
             .transitionsTo = {"dark_screen", "bright_screen"},
             .maxDurationS = 120,
-            .detection = {
+            .detectionParameters = {
                 .roi = "full_screen",
                 .method = "color_histogram",
                 .hsvLower = cv::Scalar(0, 0, 0),
@@ -38,7 +38,7 @@ namespace
             .id = "dark_screen",
             .transitionsTo = {"bright_screen"},
             .maxDurationS = 10,
-            .detection = {
+            .detectionParameters = {
                 .roi = "full_screen",
                 .method = "color_histogram",
                 .hsvLower = cv::Scalar(0, 0, 0),
@@ -55,7 +55,7 @@ namespace
             .transitionsTo = {"dark_screen"},
             .maxDurationS = 10,
             .shinyCheck = true,
-            .detection = {
+            .detectionParameters = {
                 .roi = "full_screen",
                 .method = "color_histogram",
                 .hsvLower = cv::Scalar(0, 0, 200),
@@ -96,7 +96,7 @@ namespace
 TEST(CXXStateTreeFSM, InitialStateIsFromProfile)
 {
     auto fsm = CreateTestFSM();
-    EXPECT_EQ(fsm->CurrentState(), "unknown");
+    EXPECT_EQ(fsm->GetCurrentState(), "unknown");
 }
 
 TEST(CXXStateTreeFSM, DetectsDarkScreen)
@@ -113,7 +113,7 @@ TEST(CXXStateTreeFSM, DetectsDarkScreen)
     ASSERT_TRUE(t2.has_value()); // Second frame — transition!
     EXPECT_EQ(t2->from, "unknown");
     EXPECT_EQ(t2->to, "dark_screen");
-    EXPECT_EQ(fsm->CurrentState(), "dark_screen");
+    EXPECT_EQ(fsm->GetCurrentState(), "dark_screen");
 }
 
 TEST(CXXStateTreeFSM, DetectsBrightScreen)
@@ -138,7 +138,7 @@ TEST(CXXStateTreeFSM, TransitionsFromDarkToBright)
     // Transition to dark_screen
     fsm->Update(darkRoi);
     fsm->Update(darkRoi);
-    EXPECT_EQ(fsm->CurrentState(), "dark_screen");
+    EXPECT_EQ(fsm->GetCurrentState(), "dark_screen");
 
     // Transition to bright_screen
     fsm->Update(brightRoi);
@@ -179,7 +179,7 @@ TEST(CXXStateTreeFSM, StaysInCurrentStateWhenNoMatch)
     // Midtone ROI shouldn't match either dark or bright
     auto midRoi = CreateMidtoneROI();
     EXPECT_FALSE(fsm->Update(midRoi).has_value());
-    EXPECT_EQ(fsm->CurrentState(), "unknown");
+    EXPECT_EQ(fsm->GetCurrentState(), "unknown");
 }
 
 TEST(CXXStateTreeFSM, ForceStateChangesImmediately)
@@ -187,7 +187,7 @@ TEST(CXXStateTreeFSM, ForceStateChangesImmediately)
     auto fsm = CreateTestFSM();
 
     fsm->ForceState("bright_screen");
-    EXPECT_EQ(fsm->CurrentState(), "bright_screen");
+    EXPECT_EQ(fsm->GetCurrentState(), "bright_screen");
 }
 
 TEST(CXXStateTreeFSM, ResetGoesBackToInitialState)
@@ -196,8 +196,8 @@ TEST(CXXStateTreeFSM, ResetGoesBackToInitialState)
 
     fsm->ForceState("dark_screen");
     fsm->Reset();
-    EXPECT_EQ(fsm->CurrentState(), "unknown");
-    EXPECT_TRUE(fsm->History().empty());
+    EXPECT_EQ(fsm->GetCurrentState(), "unknown");
+    EXPECT_TRUE(fsm->GetTransitionHistory().empty());
 }
 
 TEST(CXXStateTreeFSM, HistoryRecordsTransitions)
@@ -212,11 +212,11 @@ TEST(CXXStateTreeFSM, HistoryRecordsTransitions)
     fsm->Update(brightRoi);
     fsm->Update(brightRoi); // -> bright_screen
 
-    ASSERT_EQ(fsm->History().size(), 2u);
-    EXPECT_EQ(fsm->History()[0].from, "unknown");
-    EXPECT_EQ(fsm->History()[0].to, "dark_screen");
-    EXPECT_EQ(fsm->History()[1].from, "dark_screen");
-    EXPECT_EQ(fsm->History()[1].to, "bright_screen");
+    ASSERT_EQ(fsm->GetTransitionHistory().size(), 2u);
+    EXPECT_EQ(fsm->GetTransitionHistory()[0].from, "unknown");
+    EXPECT_EQ(fsm->GetTransitionHistory()[0].to, "dark_screen");
+    EXPECT_EQ(fsm->GetTransitionHistory()[1].from, "dark_screen");
+    EXPECT_EQ(fsm->GetTransitionHistory()[1].to, "bright_screen");
 }
 
 TEST(CXXStateTreeFSM, IsStuckWhenExceedingMaxDuration)
@@ -229,7 +229,7 @@ TEST(CXXStateTreeFSM, IsStuckWhenExceedingMaxDuration)
         .id = "unknown",
         .transitionsTo = {"dark_screen"},
         .maxDurationS = 120,
-        .detection = {
+        .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
             .hsvLower = cv::Scalar(0, 0, 0),
@@ -245,7 +245,7 @@ TEST(CXXStateTreeFSM, IsStuckWhenExceedingMaxDuration)
         .id = "dark_screen",
         .transitionsTo = {},
         .maxDurationS = 0, // 0 seconds = immediately stuck
-        .detection = {
+        .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
             .hsvLower = cv::Scalar(0, 0, 0),
@@ -272,9 +272,9 @@ TEST(CXXStateTreeFSM, TimeInCurrentStateIncreases)
 {
     auto fsm = CreateTestFSM();
 
-    auto t1 = fsm->TimeInCurrentState();
+    auto t1 = fsm->GetTimeInCurrentState();
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    auto t2 = fsm->TimeInCurrentState();
+    auto t2 = fsm->GetTimeInCurrentState();
     EXPECT_GT(t2.count(), t1.count());
 }
 
@@ -288,7 +288,7 @@ TEST(CXXStateTreeFSM, ReachabilityFilterBlocksUnreachableState)
     builder.AddState({
         .id = "state_a",
         .transitionsTo = {"state_b"},
-        .detection = {
+        .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
             .hsvLower = cv::Scalar(0, 200, 200),
@@ -304,7 +304,7 @@ TEST(CXXStateTreeFSM, ReachabilityFilterBlocksUnreachableState)
     builder.AddState({
         .id = "state_b",
         .transitionsTo = {"state_c"},
-        .detection = {
+        .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
             .hsvLower = cv::Scalar(55, 200, 200),
@@ -320,7 +320,7 @@ TEST(CXXStateTreeFSM, ReachabilityFilterBlocksUnreachableState)
     builder.AddState({
         .id = "state_c",
         .transitionsTo = {"state_a"},
-        .detection = {
+        .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
             .hsvLower = cv::Scalar(110, 200, 200),
@@ -333,7 +333,7 @@ TEST(CXXStateTreeFSM, ReachabilityFilterBlocksUnreachableState)
     });
 
     auto fsm = builder.Build();
-    EXPECT_EQ(fsm->CurrentState(), "state_a");
+    EXPECT_EQ(fsm->GetCurrentState(), "state_a");
 
     // Feed a blue frame: state_c would match with highest confidence,
     // but state_a can only transition to state_b, so state_c is filtered out.
@@ -347,7 +347,7 @@ TEST(CXXStateTreeFSM, ReachabilityFilterBlocksUnreachableState)
     fsm->Update(blueRoi);
     // Without reachability filter, FSM would try to transition to state_c.
     // With the filter, state_c is not a candidate, so no transition happens.
-    EXPECT_EQ(fsm->CurrentState(), "state_a");
+    EXPECT_EQ(fsm->GetCurrentState(), "state_a");
 }
 
 TEST(CXXStateTreeFSM, ReachabilityFilterAllowsLegalTransition)
@@ -359,7 +359,7 @@ TEST(CXXStateTreeFSM, ReachabilityFilterAllowsLegalTransition)
     builder.AddState({
         .id = "state_a",
         .transitionsTo = {"state_b"},
-        .detection = {
+        .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
             .hsvLower = cv::Scalar(0, 200, 200),
@@ -374,7 +374,7 @@ TEST(CXXStateTreeFSM, ReachabilityFilterAllowsLegalTransition)
     builder.AddState({
         .id = "state_b",
         .transitionsTo = {},
-        .detection = {
+        .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
             .hsvLower = cv::Scalar(55, 200, 200),
@@ -411,7 +411,7 @@ TEST(CXXStateTreeFSM, IllegalTransitionResetsPendingState)
     builder.AddState({
         .id = "state_a",
         .transitionsTo = {"state_b"},
-        .detection = {
+        .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
             .hsvLower = cv::Scalar(0, 200, 200),
@@ -427,7 +427,7 @@ TEST(CXXStateTreeFSM, IllegalTransitionResetsPendingState)
     builder.AddState({
         .id = "state_b",
         .transitionsTo = {},
-        .detection = {
+        .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
             .hsvLower = cv::Scalar(55, 200, 200),
@@ -462,11 +462,11 @@ TEST(CXXStateTreeFSM, ResetRebuildsSyncedTree)
     auto fsm = CreateTestFSM();
 
     fsm->ForceState("bright_screen");
-    ASSERT_EQ(fsm->CurrentState(), "bright_screen");
+    ASSERT_EQ(fsm->GetCurrentState(), "bright_screen");
 
     fsm->Reset();
-    EXPECT_EQ(fsm->CurrentState(), "unknown");
-    EXPECT_TRUE(fsm->History().empty());
+    EXPECT_EQ(fsm->GetCurrentState(), "unknown");
+    EXPECT_TRUE(fsm->GetTransitionHistory().empty());
 
     // After reset the tree is rebuilt; legal transitions from unknown should work.
     auto darkRoi = CreateDarkROI();
@@ -487,7 +487,7 @@ TEST(CXXStateTreeFSM, EmptyTransitionsToBlocksAllOutgoing)
         .id = "state_a",
         .transitionsTo = {"state_b"},
         .allowAllTransitions = false,
-        .detection = {
+        .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
             .hsvLower = cv::Scalar(55, 200, 200),
@@ -504,7 +504,7 @@ TEST(CXXStateTreeFSM, EmptyTransitionsToBlocksAllOutgoing)
         .id = "state_b",
         .transitionsTo = {},
         .allowAllTransitions = false,
-        .detection = {
+        .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
             .hsvLower = cv::Scalar(55, 200, 200),
@@ -534,7 +534,7 @@ TEST(CXXStateTreeFSM, EmptyTransitionsToBlocksAllOutgoing)
     // The FSM should not loop or crash — it stays in state_b.
     EXPECT_FALSE(fsm->Update(greenRoi).has_value());
     EXPECT_FALSE(fsm->Update(greenRoi).has_value());
-    EXPECT_EQ(fsm->CurrentState(), "state_b");
+    EXPECT_EQ(fsm->GetCurrentState(), "state_b");
 }
 
 TEST(CXXStateTreeFSM, AllowAllTransitionsActsAsWildcard)
@@ -548,7 +548,7 @@ TEST(CXXStateTreeFSM, AllowAllTransitionsActsAsWildcard)
         .id = "any_state",
         .transitionsTo = {},
         .allowAllTransitions = true,
-        .detection = {
+        .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
             .hsvLower = cv::Scalar(0, 0, 0),
@@ -565,7 +565,7 @@ TEST(CXXStateTreeFSM, AllowAllTransitionsActsAsWildcard)
         .id = "target",
         .transitionsTo = {},
         .allowAllTransitions = false,
-        .detection = {
+        .detectionParameters = {
             .roi = "full_screen",
             .method = "color_histogram",
             .hsvLower = cv::Scalar(0, 0, 0),
@@ -578,7 +578,7 @@ TEST(CXXStateTreeFSM, AllowAllTransitionsActsAsWildcard)
     });
 
     auto fsm = builder.Build();
-    EXPECT_EQ(fsm->CurrentState(), "any_state");
+    EXPECT_EQ(fsm->GetCurrentState(), "any_state");
 
     // Dark frames should transition to "target" even though any_state has empty transitionsTo,
     // because allowAllTransitions = true makes all states reachable.
@@ -587,4 +587,43 @@ TEST(CXXStateTreeFSM, AllowAllTransitionsActsAsWildcard)
     auto t = fsm->Update(darkRoi);
     ASSERT_TRUE(t.has_value());
     EXPECT_EQ(t->to, "target");
+}
+
+TEST(CXXStateTreeFSM, InitialStateReturnsBuilderInitialState)
+{
+    // InitialState() must return exactly what was passed to SetInitialState().
+    auto fsm = CreateTestFSM();
+    EXPECT_EQ(fsm->GetInitialState(), "unknown");
+
+    // Remains stable after ForceState.
+    fsm->ForceState("dark_screen");
+    EXPECT_EQ(fsm->GetInitialState(), "unknown");
+
+    // Remains stable after Reset.
+    fsm->Reset();
+    EXPECT_EQ(fsm->GetInitialState(), "unknown");
+}
+
+TEST(CXXStateTreeFSM, ForceToInitialStateAllowsNormalDetection)
+{
+    // After forcing to InitialState (as the watchdog does), the FSM should be able to
+    // transition normally — confirming the watchdog reset produces a deterministic state.
+    auto fsm = CreateTestFSM();
+
+    // Drive into dark_screen
+    auto darkRoi = CreateDarkROI();
+    fsm->Update(darkRoi);
+    fsm->Update(darkRoi);
+    ASSERT_EQ(fsm->GetCurrentState(), "dark_screen");
+
+    // Simulate watchdog recovery: force to initial state
+    fsm->ForceState(fsm->GetInitialState());
+    EXPECT_EQ(fsm->GetCurrentState(), "unknown");
+
+    // FSM should be able to transition again from unknown
+    auto brightRoi = CreateBrightROI();
+    fsm->Update(brightRoi);
+    auto t = fsm->Update(brightRoi);
+    ASSERT_TRUE(t.has_value());
+    EXPECT_EQ(t->to, "bright_screen");
 }

@@ -79,6 +79,9 @@ namespace SH3DS::App
             hardwareConfig.screenCalibration, unifiedConfig.rois, hardwareConfig.bottomScreenCalibration);
 
         // Create FSM
+        // TODO(hunt-profile-dispatch): Currently only XY Starter SR is supported. When multi-profile
+        // support is needed, add a `hunt_profile` key to the unified hunt YAML and dispatch here via
+        // a lookup table (e.g. "xy_starter_sr" -> HuntProfiles::CreateXYStarterSR).
         pipeline.fsm = FSM::HuntProfiles::CreateXYStarterSR(unifiedConfig.fsmParams);
 
         // Create detector
