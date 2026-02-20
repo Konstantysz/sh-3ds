@@ -21,6 +21,12 @@ namespace SH3DS::FSM
         return *this;
     }
 
+    CXXStateTreeFSM::Builder &CXXStateTreeFSM::Builder::SetScreenMode(Core::ScreenMode mode)
+    {
+        screenMode = mode;
+        return *this;
+    }
+
     CXXStateTreeFSM::Builder &CXXStateTreeFSM::Builder::AddState(StateConfig config)
     {
         stateConfigs.push_back(std::move(config));
@@ -47,24 +53,27 @@ namespace SH3DS::FSM
         auto stateTree = std::make_unique<CXXStateTree::StateTree>(treeBuilder.build());
 
         return std::unique_ptr<CXXStateTreeFSM>(
-            new CXXStateTreeFSM(std::move(stateTree), initialState, debounceFrames, std::move(stateConfigs)));
+            new CXXStateTreeFSM(std::move(stateTree), initialState, debounceFrames, screenMode, std::move(stateConfigs)));
     }
 
     CXXStateTreeFSM::CXXStateTreeFSM(std::unique_ptr<CXXStateTree::StateTree> tree,
         std::string initialState,
         int debounceFrames,
+        Core::ScreenMode screenMode,
         std::vector<StateConfig> stateConfigs)
         : tree(std::move(tree)),
           initialState(std::move(initialState)),
           debounceFrames(debounceFrames),
+          screenMode(screenMode),
           stateConfigs(std::move(stateConfigs))
     {
         Reset();
     }
 
-    std::optional<Core::StateTransition> CXXStateTreeFSM::Update(const Core::ROISet &rois)
+    std::optional<Core::StateTransition> CXXStateTreeFSM::Update(const Core::ROISet &topRois,
+        const SH3DS::Core::ROISet &bottomRois)
     {
-        const auto bestCandidateState = DetectBestCandidateState(rois);
+        const auto bestCandidateState = DetectBestCandidateState(topRois, bottomRois);
         if (bestCandidateState.state.empty() || bestCandidateState.confidence < 0.01)
         {
             pendingFrameCount = 0;
@@ -193,13 +202,16 @@ namespace SH3DS::FSM
         return transitionHistory;
     }
 
-    CXXStateTreeFSM::DetectionResult CXXStateTreeFSM::DetectBestCandidateState(const Core::ROISet &rois) const
+    CXXStateTreeFSM::DetectionResult CXXStateTreeFSM::DetectBestCandidateState(const Core::ROISet &topRois,
+        const SH3DS::Core::ROISet &bottomRois) const
     {
-        LOG_DEBUG("FSM: EvaluateRules called with {} ROIs, {} states", rois.size(), stateConfigs.size());
+        LOG_DEBUG("FSM: EvaluateRules called with {} top ROIs, {} bottom ROIs, {} states",
+            topRois.size(),
+            bottomRois.size(),
+            stateConfigs.size());
+
         DetectionResult bestResult;
-
         std::vector<std::string> candidates;
-
         const auto *currentConfig = FindStateConfig(currentState);
         const bool constrained = currentConfig != nullptr;
         if (constrained)
@@ -220,35 +232,130 @@ namespace SH3DS::FSM
             }
 
             const auto &stateDetectionParameters = stateConfig.detectionParameters;
-            auto it = rois.find(stateDetectionParameters.roi);
-            if (it == rois.end() || it->second.empty())
+            const bool hasTop = stateDetectionParameters.top.has_value();
+            const bool hasBottom = stateDetectionParameters.bottom.has_value();
+            if (!hasTop && !hasBottom)
             {
                 continue;
             }
 
-            const cv::Mat &roiMat = it->second;
-            double confidence = 0.0;
+            auto evaluateForRoi = [&](const std::optional<Core::RoiDetectionParams> &roiDetectionParams,
+                                      const Core::ROISet &roiSet,
+                                      const char *screenLabel)
+                -> std::optional<double> {
+                if (!roiDetectionParams.has_value())
+                {
+                    return std::nullopt;
+                }
 
-            if (stateDetectionParameters.method == "template_match")
+                const auto &params = roiDetectionParams.value();
+                const std::string method = params.method;
+
+                auto it = roiSet.find(params.roi);
+                if (it == roiSet.end() || it->second.empty())
+                {
+                    return std::nullopt;
+                }
+
+                const cv::Mat &roiMat = it->second;
+                double confidence = 0.0;
+
+                if (method == "template_match")
+                {
+                    confidence = EvaluateTemplateMatch(roiMat, params);
+                }
+                else if (method == "color_histogram" || method == "pixel_ratio")
+                {
+                    confidence = EvaluateColorHistogram(roiMat, params);
+                }
+                else
+                {
+                    return std::nullopt;
+                }
+
+                LOG_DEBUG(
+                    "FSM: Evaluating Rule for state '{}' on {} ROI '{}': confidence={:.3f} (threshold={:.2f})",
+                    stateConfig.id,
+                    screenLabel,
+                    params.roi,
+                    confidence,
+                    params.threshold);
+
+                if (confidence < params.threshold)
+                {
+                    return std::nullopt;
+                }
+
+                return confidence;
+            };
+
+            double combinedConfidence = 0.0;
+            if (screenMode == Core::ScreenMode::Single)
             {
-                confidence = EvaluateTemplateMatch(roiMat, stateDetectionParameters);
+                auto evaluateSingleScreenBlock = [&](const std::optional<Core::RoiDetectionParams> &block)
+                    -> std::optional<double> {
+                    auto topConfidence = evaluateForRoi(block, topRois, "top");
+                    if (topConfidence.has_value())
+                    {
+                        return topConfidence;
+                    }
+                    return evaluateForRoi(block, bottomRois, "bottom");
+                };
+
+                if (hasTop)
+                {
+                    auto topConfidence = evaluateSingleScreenBlock(stateDetectionParameters.top);
+                    if (!topConfidence.has_value())
+                    {
+                        continue;
+                    }
+                    combinedConfidence = topConfidence.value();
+                }
+                else
+                {
+                    auto bottomConfidence = evaluateSingleScreenBlock(stateDetectionParameters.bottom);
+                    if (!bottomConfidence.has_value())
+                    {
+                        continue;
+                    }
+                    combinedConfidence = bottomConfidence.value();
+                }
             }
-            else if (stateDetectionParameters.method == "color_histogram"
-                     || stateDetectionParameters.method == "pixel_ratio")
+            else
             {
-                confidence = EvaluateColorHistogram(roiMat, stateDetectionParameters);
+                auto topConfidence = evaluateForRoi(stateDetectionParameters.top, topRois, "top");
+                auto bottomConfidence = evaluateForRoi(stateDetectionParameters.bottom, bottomRois, "bottom");
+
+                if (hasTop && hasBottom)
+                {
+                    if (!topConfidence.has_value() || !bottomConfidence.has_value())
+                    {
+                        continue;
+                    }
+                    combinedConfidence = std::min(topConfidence.value(), bottomConfidence.value());
+                }
+                else if (hasTop)
+                {
+                    if (!topConfidence.has_value())
+                    {
+                        continue;
+                    }
+                    combinedConfidence = topConfidence.value();
+                }
+                else
+                {
+                    if (!bottomConfidence.has_value())
+                    {
+                        continue;
+                    }
+                    combinedConfidence = bottomConfidence.value();
+                }
             }
 
-            LOG_DEBUG("FSM: Evaluating Rule for state '{}' on ROI '{}': confidence={:.3f} (threshold={:.2f})",
-                stateConfig.id,
-                stateDetectionParameters.roi,
-                confidence,
-                stateDetectionParameters.threshold);
-
-            if (confidence >= stateDetectionParameters.threshold && confidence > bestResult.confidence)
+            if (combinedConfidence > bestResult.confidence)
             {
                 bestResult.state = stateConfig.id;
-                bestResult.confidence = confidence;
+                bestResult.confidence = combinedConfidence;
             }
         }
 
@@ -256,35 +363,34 @@ namespace SH3DS::FSM
     }
 
     double CXXStateTreeFSM::EvaluateTemplateMatch(const cv::Mat &roi,
-        const Core::StateDetectionParams &stateDetectionParameters) const
+        const Core::RoiDetectionParams &roiDetectionParameters) const
     {
-        if (stateDetectionParameters.templatePath.empty())
+        if (roiDetectionParameters.templatePath.empty())
         {
             return 0.0;
         }
 
-        return templateMatcher.Match(roi, stateDetectionParameters.templatePath);
+        return templateMatcher.Match(roi, roiDetectionParameters.templatePath);
     }
 
     double CXXStateTreeFSM::EvaluateColorHistogram(const cv::Mat &roi,
-        const Core::StateDetectionParams &stateDetectionParameters) const
+        const Core::RoiDetectionParams &roiDetectionParameters) const
     {
         cv::Mat hsv;
         cv::cvtColor(roi, hsv, cv::COLOR_BGR2HSV);
 
         cv::Mat mask;
-        cv::inRange(hsv, stateDetectionParameters.hsvLower, stateDetectionParameters.hsvUpper, mask);
+        cv::inRange(hsv, roiDetectionParameters.hsvLower, roiDetectionParameters.hsvUpper, mask);
 
         const double pixelRatio = cv::countNonZero(mask) / static_cast<double>(roi.total());
 
-        if (pixelRatio < stateDetectionParameters.pixelRatioMin || pixelRatio > stateDetectionParameters.pixelRatioMax)
+        if (pixelRatio < roiDetectionParameters.pixelRatioMin || pixelRatio > roiDetectionParameters.pixelRatioMax)
         {
             return 0.0;
         }
 
-        const double midpoint = (stateDetectionParameters.pixelRatioMin + stateDetectionParameters.pixelRatioMax) / 2.0;
-        const double halfRange =
-            (stateDetectionParameters.pixelRatioMax - stateDetectionParameters.pixelRatioMin) / 2.0;
+        const double midpoint = (roiDetectionParameters.pixelRatioMin + roiDetectionParameters.pixelRatioMax) / 2.0;
+        const double halfRange = (roiDetectionParameters.pixelRatioMax - roiDetectionParameters.pixelRatioMin) / 2.0;
         const double distance = std::abs(pixelRatio - midpoint);
 
         return halfRange > 0.0 ? 1.0 - 0.5 * (distance / halfRange) : 1.0;
@@ -311,3 +417,4 @@ namespace SH3DS::FSM
         return nullptr;
     }
 } // namespace SH3DS::FSM
+

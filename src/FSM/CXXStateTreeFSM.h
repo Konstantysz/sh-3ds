@@ -31,10 +31,10 @@ namespace SH3DS::FSM
          */
         struct StateConfig
         {
-            std::string id;                         ///< State identifier
-            std::vector<std::string> transitionsTo; ///< Allowed target states (empty = no transitions)
-            int maxDurationS = 60;                  ///< Watchdog timeout
-            bool shinyCheck = false;                ///< Whether this state triggers shiny detection
+            std::string id;                                 ///< State identifier
+            std::vector<std::string> transitionsTo;         ///< Allowed target states (empty = no transitions)
+            int maxDurationS = 60;                          ///< Watchdog timeout
+            bool shinyCheck = false;                        ///< Whether this state triggers shiny detection
             Core::StateDetectionParams detectionParameters; ///< Detection parameters (from YAML)
         };
 
@@ -59,6 +59,13 @@ namespace SH3DS::FSM
             Builder &SetDebounceFrames(int frames);
 
             /**
+             * @brief Sets the screen mode used for ROI evaluation.
+             * @param mode Single-screen or dual-screen mode.
+             * @return Builder& The builder instance.
+             */
+            Builder &SetScreenMode(Core::ScreenMode mode);
+
+            /**
              * @brief Adds a state configuration.
              * @param config The state configuration.
              * @return Builder& The builder instance.
@@ -74,12 +81,14 @@ namespace SH3DS::FSM
         private:
             std::string initialState;
             int debounceFrames = 3;
+            Core::ScreenMode screenMode = Core::ScreenMode::Single;
             std::vector<StateConfig> stateConfigs;
         };
 
         ~CXXStateTreeFSM() override = default;
 
-        std::optional<Core::StateTransition> Update(const Core::ROISet &rois) override;
+        std::optional<Core::StateTransition> Update(const Core::ROISet &topRois,
+            const SH3DS::Core::ROISet &bottomRois) override;
 
         void Reset() override;
 
@@ -104,6 +113,7 @@ namespace SH3DS::FSM
         explicit CXXStateTreeFSM(std::unique_ptr<CXXStateTree::StateTree> tree,
             std::string initialState,
             int debounceFrames,
+            Core::ScreenMode screenMode,
             std::vector<StateConfig> stateConfigs);
 
         /**
@@ -117,10 +127,12 @@ namespace SH3DS::FSM
 
         /**
          * @brief Detects the best candidate state from the current ROISet.
-         * @param rois The current ROISet.
+         * @param topRois The current top ROISet.
+         * @param bottomRois The current bottom ROISet.
          * @return DetectionResult The result of the detection.
          */
-        DetectionResult DetectBestCandidateState(const Core::ROISet &rois) const;
+        DetectionResult DetectBestCandidateState(const Core::ROISet &topRois,
+            const SH3DS::Core::ROISet &bottomRois) const;
 
         /**
          * @brief Evaluates the template match for a given ROI.
@@ -129,7 +141,7 @@ namespace SH3DS::FSM
          * @return double The template match score.
          */
         double EvaluateTemplateMatch(const cv::Mat &roi,
-            const Core::StateDetectionParams &stateDetectionParameters) const;
+            const Core::RoiDetectionParams &roiDetectionParameters) const;
 
         /**
          * @brief Evaluates the color histogram for a given ROI.
@@ -138,7 +150,7 @@ namespace SH3DS::FSM
          * @return double The color histogram score.
          */
         double EvaluateColorHistogram(const cv::Mat &roi,
-            const Core::StateDetectionParams &stateDetectionParameters) const;
+            const Core::RoiDetectionParams &roiDetectionParameters) const;
 
         /**
          * @brief Records a state transition.
@@ -156,6 +168,7 @@ namespace SH3DS::FSM
         std::unique_ptr<CXXStateTree::StateTree> tree; ///< CXXStateTree instance
         std::string initialState;                      ///< Initial state ID
         int debounceFrames;                            ///< Debounce frame count
+        Core::ScreenMode screenMode = Core::ScreenMode::Single; ///< Screen mode for detection
         std::vector<StateConfig> stateConfigs;         ///< All state configurations
 
         Core::GameState currentState;                         ///< The current state

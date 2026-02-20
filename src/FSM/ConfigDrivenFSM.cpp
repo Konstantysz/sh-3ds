@@ -13,9 +13,11 @@ namespace SH3DS::FSM
         Reset();
     }
 
-    std::optional<Core::StateTransition> ConfigDrivenFSM::Update(const Core::ROISet &rois)
+    std::optional<Core::StateTransition> ConfigDrivenFSM::Update(const Core::ROISet &topRois,
+        const SH3DS::Core::ROISet &bottomRois)
     {
-        auto result = EvaluateRules(rois);
+        (void)bottomRois;
+        auto result = EvaluateRules(topRois);
 
         if (result.state.empty() || result.confidence < 0.01)
         {

@@ -18,10 +18,12 @@ namespace SH3DS::FSM
 
         /**
          * @brief Updates the FSM with the current ROISet.
-         * @param rois The ROISet to update with.
+         * @param topRois The top ROISet.
+         * @param bottomRois The bottom ROISet.
          * @return An optional containing the state transition if successful, an empty optional otherwise.
          */
-        virtual std::optional<Core::StateTransition> Update(const Core::ROISet &rois) = 0;
+        virtual std::optional<Core::StateTransition> Update(const Core::ROISet &topRois,
+            const SH3DS::Core::ROISet &bottomRois) = 0;
 
         /**
          * @brief Resets the FSM.

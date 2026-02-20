@@ -24,6 +24,7 @@ namespace SH3DS::FSM
         CXXStateTreeFSM::Builder builder;
         builder.SetInitialState("load_game");
         builder.SetDebounceFrames(params.debounceFrames);
+        builder.SetScreenMode(params.screenMode);
 
         builder.AddState({
             .id = "load_game",
