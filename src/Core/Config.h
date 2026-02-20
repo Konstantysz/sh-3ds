@@ -233,12 +233,21 @@ namespace SH3DS::Core
     };
 
     /**
-     * @brief Per-state detection parameters loaded from YAML for tuning.
+     * @brief Screen mode for state detection input.
      */
-    struct StateDetectionParams
+    enum class ScreenMode
     {
-        std::string roi;            ///< Name of the ROI to analyze
-        std::string method;         ///< Detection method: "color_histogram" or "template_match"
+        Single, ///< Single-screen device/config (exactly one ROI block per state)
+        Dual,   ///< Dual-screen device/config (top and/or bottom ROI blocks per state)
+    };
+
+    /**
+     * @brief Detection parameters for a single ROI block (top or bottom).
+     */
+    struct RoiDetectionParams
+    {
+        std::string roi;            ///< ROI name to analyze
+        std::string method;         ///< Detection method: "color_histogram", "pixel_ratio", "template_match"
         cv::Scalar hsvLower;        ///< Lower HSV bounds
         cv::Scalar hsvUpper;        ///< Upper HSV bounds
         double pixelRatioMin = 0.0; ///< Minimum pixel ratio
@@ -248,10 +257,20 @@ namespace SH3DS::Core
     };
 
     /**
+     * @brief Per-state detection parameters loaded from YAML for tuning.
+     */
+    struct StateDetectionParams
+    {
+        std::optional<RoiDetectionParams> top;    ///< Optional top-screen ROI detection block
+        std::optional<RoiDetectionParams> bottom; ///< Optional bottom-screen ROI detection block
+    };
+
+    /**
      * @brief Detection parameters for a complete hunt, keyed by state ID.
      */
     struct HuntDetectionParams
     {
+        ScreenMode screenMode = ScreenMode::Single;            ///< Device/config screen mode
         std::map<std::string, StateDetectionParams> stateParams; ///< Detection params per state
         int debounceFrames = 3;                                  ///< Frame debounce count
     };
@@ -268,6 +287,7 @@ namespace SH3DS::Core
         std::string huntId;        ///< Unique identifier for this hunt config
         std::string huntName;      ///< Human-readable name
         std::string targetPokemon; ///< Target Pokémon
+        ScreenMode screenMode = ScreenMode::Single; ///< Single vs dual-screen detection mode
 
         // ROIs (fed to FramePreprocessor)
         std::vector<RoiDefinition> rois; ///< Named regions of interest
@@ -342,3 +362,5 @@ namespace SH3DS::Core
     HuntConfig ToHuntConfig(const UnifiedHuntConfig &unified);
 
 } // namespace SH3DS::Core
+
+
