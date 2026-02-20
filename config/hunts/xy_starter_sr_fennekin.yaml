@@ -1,8 +1,9 @@
 hunt_id: "xy_starter_sr_fennekin"
 hunt_name: "Pokemon X/Y Starter Soft Reset (Fennekin)"
 target_pokemon: "fennekin"
+screen_mode: "dual"
 
-# Regions of Interest (relative to warped top screen, normalized 0.0-1.0)
+# Regions of Interest (normalized 0.0-1.0, extracted on both warped screens)
 rois:
   - name: "top_full"
     x: 0.05
@@ -19,6 +20,11 @@ rois:
     y: 0.3
     w: 0.6
     h: 0.4
+  - name: "bottom_prompt"
+    x: 0.20
+    y: 0.30
+    w: 0.60
+    h: 0.28
   - name: "dialogue"
     x: 0.1
     y: 0.75
@@ -34,74 +40,90 @@ rois:
 debounce_frames: 3
 fsm_states:
   load_game:
-    method: "color_histogram"
-    roi: "top_strip"
-    hsv_lower: [60, 60, 190]
-    hsv_upper: [90, 100, 255]
-    threshold: 0.6
+    top:
+      roi: "top_strip"
+      method: "color_histogram"
+      hsv_lower: [60, 60, 190]
+      hsv_upper: [90, 100, 255]
+      threshold: 0.6
 
   game_start:
-    method: "color_histogram"
-    roi: "top_strip"
-    hsv_lower: [75, 0, 210]
-    hsv_upper: [110, 45, 255]
-    threshold: 0.6
+    top:
+      roi: "top_strip"
+      method: "color_histogram"
+      hsv_lower: [75, 0, 210]
+      hsv_upper: [110, 45, 255]
+      threshold: 0.6
 
   cutscene_part_1:
-    method: "color_histogram"
-    roi: "top_full"
-    hsv_lower: [0, 0, 41]
-    hsv_upper: [180, 255, 255]
-    threshold: 0.5
+    top:
+      roi: "top_full"
+      method: "color_histogram"
+      hsv_lower: [0, 0, 41]
+      hsv_upper: [180, 255, 255]
+      threshold: 0.5
 
   starter_pick:
-    method: "color_histogram"
-    roi: "starters_area"
-    hsv_lower: [100, 80, 180]
-    hsv_upper: [118, 115, 225]
-    threshold: 0.5
+    top:
+      roi: "starters_area"
+      method: "color_histogram"
+      hsv_lower: [100, 80, 180]
+      hsv_upper: [118, 115, 225]
+      threshold: 0.5
+    bottom:
+      roi: "bottom_prompt"
+      method: "color_histogram"
+      hsv_lower: [95, 40, 165]
+      hsv_upper: [130, 150, 240]
+      threshold: 0.5
 
   cutscene_part_2:
-    method: "color_histogram"
-    roi: "top_full"
-    hsv_lower: [0, 0, 41]
-    hsv_upper: [180, 255, 255]
-    threshold: 0.5
+    top:
+      roi: "top_full"
+      method: "color_histogram"
+      hsv_lower: [0, 0, 41]
+      hsv_upper: [180, 255, 255]
+      threshold: 0.5
 
   nickname_prompt:
-    method: "color_histogram"
-    roi: "top_strip"
-    hsv_lower: [100, 75, 165]
-    hsv_upper: [120, 105, 200]
-    threshold: 0.5
+    top:
+      roi: "top_strip"
+      method: "color_histogram"
+      hsv_lower: [100, 75, 165]
+      hsv_upper: [120, 105, 200]
+      threshold: 0.5
 
   cutscene_part_3:
-    method: "color_histogram"
-    roi: "top_full"
-    hsv_lower: [0, 0, 41]
-    hsv_upper: [180, 255, 255]
-    threshold: 0.5
+    top:
+      roi: "top_full"
+      method: "color_histogram"
+      hsv_lower: [0, 0, 41]
+      hsv_upper: [180, 255, 255]
+      threshold: 0.5
 
   party_menu:
-    method: "color_histogram"
-    roi: "top_strip"
-    hsv_lower: [96, 130, 180]
-    hsv_upper: [112, 165, 225]
-    threshold: 0.6
+    top:
+      roi: "top_strip"
+      method: "color_histogram"
+      hsv_lower: [96, 130, 180]
+      hsv_upper: [112, 165, 225]
+      threshold: 0.6
 
   pokemon_summary:
-    method: "color_histogram"
-    roi: "pokemon_sprite"
-    hsv_lower: [100, 70, 165]
-    hsv_upper: [120, 105, 215]
-    threshold: 0.3
+    top:
+      roi: "pokemon_sprite"
+      method: "color_histogram"
+      hsv_lower: [100, 70, 165]
+      hsv_upper: [120, 105, 215]
+      threshold: 0.3
 
   soft_reset:
-    method: "color_histogram"
-    roi: "top_full"
-    hsv_lower: [0, 0, 0]
-    hsv_upper: [180, 255, 40]
-    threshold: 0.95
+    top:
+      roi: "top_full"
+      method: "color_histogram"
+      hsv_lower: [0, 0, 0]
+      hsv_upper: [180, 255, 40]
+      threshold: 0.95
 
 # Shiny detector (dominant color method)
 # Based on projected hardware shift (Gamma 1.3, WB)
@@ -187,3 +209,4 @@ recovery:
   on_detection_failure:
     action: "skip"
     max_consecutive: 10
+
