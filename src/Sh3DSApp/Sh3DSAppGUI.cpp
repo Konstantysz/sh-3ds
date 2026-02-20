@@ -79,7 +79,8 @@ int main(int argc, char *argv[])
         auto screenDetector = SH3DS::Capture::ScreenDetector::CreateScreenDetector();
 
         auto preprocessor =
-            std::make_unique<SH3DS::Capture::FramePreprocessor>(hardwareConfig.screenCalibration, unifiedConfig.rois);
+            std::make_unique<SH3DS::Capture::FramePreprocessor>(
+                hardwareConfig.screenCalibration, unifiedConfig.rois, hardwareConfig.bottomScreenCalibration);
 
         // TODO(hunt-profile-dispatch): Currently only XY Starter SR is supported. When multi-profile
         // support is needed, add a `hunt_profile` key to the unified hunt YAML and dispatch here via
@@ -133,3 +134,5 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
+

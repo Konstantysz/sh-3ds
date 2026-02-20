@@ -102,6 +102,7 @@ namespace SH3DS::Capture
                 result.warpedBottom,
                 bottomWarpMatrix,
                 cv::Size(bottomCalibration->targetWidth, bottomCalibration->targetHeight));
+            result.bottomRois = ExtractRois(result.warpedBottom, *bottomCalibration);
         }
 
         return result;
@@ -178,3 +179,4 @@ namespace SH3DS::Capture
     }
 
 } // namespace SH3DS::Capture
+

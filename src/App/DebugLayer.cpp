@@ -158,32 +158,32 @@ namespace SH3DS::App
             screenDetector->ApplyTo(*preprocessor, frame->image);
         }
 
-        auto dualResult = preprocessor->ProcessDualScreen(frame->image);
-        if (!dualResult)
+        auto dualScreenResult = preprocessor->ProcessDualScreen(frame->image);
+        if (!dualScreenResult)
         {
             lastProcessedFrame = frameIndex;
             return;
         }
 
-        if (!dualResult->warpedTop.empty())
+        if (!dualScreenResult->warpedTop.empty())
         {
-            currentTopScreen = dualResult->warpedTop;
+            currentTopScreen = dualScreenResult->warpedTop;
             topWidth = currentTopScreen.cols;
             topHeight = currentTopScreen.rows;
             TextureUploader::Upload(currentTopScreen, topScreenTexture);
         }
 
-        if (!dualResult->warpedBottom.empty())
+        if (!dualScreenResult->warpedBottom.empty())
         {
-            currentBottomScreen = dualResult->warpedBottom;
+            currentBottomScreen = dualScreenResult->warpedBottom;
             bottomWidth = currentBottomScreen.cols;
             bottomHeight = currentBottomScreen.rows;
             TextureUploader::Upload(currentBottomScreen, bottomScreenTexture);
         }
 
-        if (dualResult->topRois)
+        if (!dualScreenResult->topRois.empty() || !dualScreenResult->bottomRois.empty())
         {
-            fsm->Update(*dualResult->topRois);
+            fsm->Update(dualScreenResult->topRois, dualScreenResult->bottomRois);
 
             const std::string newState = fsm->GetCurrentState();
             if (newState != currentStateName)
@@ -196,11 +196,11 @@ namespace SH3DS::App
             timeInState = static_cast<float>(ms.count()) / 1000.0f;
         }
 
-        if (detector && dualResult->topRois && !shinyRoi.empty()
+        if (detector && !dualScreenResult->topRois.empty() && !shinyRoi.empty()
             && (shinyCheckState.empty() || currentStateName == shinyCheckState))
         {
-            auto it = dualResult->topRois->find(shinyRoi);
-            if (it != dualResult->topRois->end() && !it->second.empty())
+            auto it = dualScreenResult->topRois.find(shinyRoi);
+            if (it != dualScreenResult->topRois.end() && !it->second.empty())
             {
                 currentShinyResult = detector->Detect(it->second);
             }

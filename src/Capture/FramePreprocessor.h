@@ -18,7 +18,8 @@ namespace SH3DS::Capture
     {
         cv::Mat warpedTop;                   ///< Full warped top screen image
         cv::Mat warpedBottom;                ///< Full warped bottom screen image (empty if no calibration)
-        std::optional<Core::ROISet> topRois; ///< Extracted ROIs from top screen
+        Core::ROISet topRois; ///< Extracted ROIs from top screen
+        Core::ROISet bottomRois; ///< Extracted ROIs from bottom screen
     };
 
     /**
@@ -37,7 +38,7 @@ namespace SH3DS::Capture
         /**
          * @brief Constructs a new FramePreprocessor with optional bottom screen calibration.
          * @param calibration The top screen calibration configuration.
-         * @param roiDefs The ROI definitions (applied to top screen).
+         * @param roiDefs The ROI definitions (extracted from both top and bottom warped screens).
          * @param bottomCalibration The bottom screen calibration (optional).
          */
         FramePreprocessor(Core::ScreenCalibrationConfig calibration,
@@ -98,3 +99,4 @@ namespace SH3DS::Capture
         cv::Mat bottomWarpMatrix;                                       ///< Bottom screen warp matrix
     };
 } // namespace SH3DS::Capture
+

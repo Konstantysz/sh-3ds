@@ -133,8 +133,8 @@ namespace SH3DS::Pipeline
 
         LOG_DEBUG("Orchestrator: Processing frame #{}...", frame->metadata.sequenceNumber);
 
-        auto rois = preprocessor->Process(frame->image);
-        if (!rois.has_value())
+        auto dualScreenResult = preprocessor->ProcessDualScreen(frame->image);
+        if (!dualScreenResult.has_value())
         {
             LOG_DEBUG("Orchestrator: Screen not detected in frame #{}", frame->metadata.sequenceNumber);
             return;
@@ -142,7 +142,7 @@ namespace SH3DS::Pipeline
 
         LOG_DEBUG("Orchestrator: Updating FSM...");
 
-        auto transition = fsm->Update(*rois);
+        auto transition = fsm->Update(dualScreenResult->topRois, dualScreenResult->bottomRois);
         if (transition.has_value())
         {
             LOG_INFO(
@@ -154,8 +154,8 @@ namespace SH3DS::Pipeline
         std::optional<Core::ShinyResult> shinyResult;
         if (detector)
         {
-            auto spriteIt = rois->find(config.shinyRoi);
-            if (spriteIt != rois->end() && !spriteIt->second.empty())
+            auto spriteIt = dualScreenResult->topRois.find(config.shinyRoi);
+            if (spriteIt != dualScreenResult->topRois.end() && !spriteIt->second.empty())
             {
                 shinyResult = detector->Detect(spriteIt->second);
             }
@@ -226,3 +226,4 @@ namespace SH3DS::Pipeline
         }
     }
 } // namespace SH3DS::Pipeline
+
