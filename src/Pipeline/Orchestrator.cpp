@@ -226,4 +226,3 @@ namespace SH3DS::Pipeline
         }
     }
 } // namespace SH3DS::Pipeline
-

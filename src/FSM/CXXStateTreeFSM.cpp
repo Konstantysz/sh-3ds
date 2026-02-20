@@ -52,8 +52,8 @@ namespace SH3DS::FSM
 
         auto stateTree = std::make_unique<CXXStateTree::StateTree>(treeBuilder.build());
 
-        return std::unique_ptr<CXXStateTreeFSM>(
-            new CXXStateTreeFSM(std::move(stateTree), initialState, debounceFrames, screenMode, std::move(stateConfigs)));
+        return std::unique_ptr<CXXStateTreeFSM>(new CXXStateTreeFSM(
+            std::move(stateTree), initialState, debounceFrames, screenMode, std::move(stateConfigs)));
     }
 
     CXXStateTreeFSM::CXXStateTreeFSM(std::unique_ptr<CXXStateTree::StateTree> tree,
@@ -241,8 +241,7 @@ namespace SH3DS::FSM
 
             auto evaluateForRoi = [&](const std::optional<Core::RoiDetectionParams> &roiDetectionParams,
                                       const Core::ROISet &roiSet,
-                                      const char *screenLabel)
-                -> std::optional<double> {
+                                      const char *screenLabel) -> std::optional<double> {
                 if (!roiDetectionParams.has_value())
                 {
                     return std::nullopt;
@@ -273,8 +272,7 @@ namespace SH3DS::FSM
                     return std::nullopt;
                 }
 
-                LOG_DEBUG(
-                    "FSM: Evaluating Rule for state '{}' on {} ROI '{}': confidence={:.3f} (threshold={:.2f})",
+                LOG_DEBUG("FSM: Evaluating Rule for state '{}' on {} ROI '{}': confidence={:.3f} (threshold={:.2f})",
                     stateConfig.id,
                     screenLabel,
                     params.roi,
@@ -292,8 +290,8 @@ namespace SH3DS::FSM
             double combinedConfidence = 0.0;
             if (screenMode == Core::ScreenMode::Single)
             {
-                auto evaluateSingleScreenBlock = [&](const std::optional<Core::RoiDetectionParams> &block)
-                    -> std::optional<double> {
+                auto evaluateSingleScreenBlock =
+                    [&](const std::optional<Core::RoiDetectionParams> &block) -> std::optional<double> {
                     auto topConfidence = evaluateForRoi(block, topRois, "top");
                     if (topConfidence.has_value())
                     {
@@ -417,4 +415,3 @@ namespace SH3DS::FSM
         return nullptr;
     }
 } // namespace SH3DS::FSM
-

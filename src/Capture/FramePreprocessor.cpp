@@ -179,4 +179,3 @@ namespace SH3DS::Capture
     }
 
 } // namespace SH3DS::Capture
-

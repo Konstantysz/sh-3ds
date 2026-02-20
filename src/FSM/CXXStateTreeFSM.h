@@ -140,8 +140,7 @@ namespace SH3DS::FSM
          * @param stateDetectionParameters The detection parameters.
          * @return double The template match score.
          */
-        double EvaluateTemplateMatch(const cv::Mat &roi,
-            const Core::RoiDetectionParams &roiDetectionParameters) const;
+        double EvaluateTemplateMatch(const cv::Mat &roi, const Core::RoiDetectionParams &roiDetectionParameters) const;
 
         /**
          * @brief Evaluates the color histogram for a given ROI.
@@ -149,8 +148,7 @@ namespace SH3DS::FSM
          * @param stateDetectionParameters The detection parameters.
          * @return double The color histogram score.
          */
-        double EvaluateColorHistogram(const cv::Mat &roi,
-            const Core::RoiDetectionParams &roiDetectionParameters) const;
+        double EvaluateColorHistogram(const cv::Mat &roi, const Core::RoiDetectionParams &roiDetectionParameters) const;
 
         /**
          * @brief Records a state transition.
@@ -165,11 +163,11 @@ namespace SH3DS::FSM
          */
         const StateConfig *FindStateConfig(const std::string &id) const;
 
-        std::unique_ptr<CXXStateTree::StateTree> tree; ///< CXXStateTree instance
-        std::string initialState;                      ///< Initial state ID
-        int debounceFrames;                            ///< Debounce frame count
+        std::unique_ptr<CXXStateTree::StateTree> tree;          ///< CXXStateTree instance
+        std::string initialState;                               ///< Initial state ID
+        int debounceFrames;                                     ///< Debounce frame count
         Core::ScreenMode screenMode = Core::ScreenMode::Single; ///< Screen mode for detection
-        std::vector<StateConfig> stateConfigs;         ///< All state configurations
+        std::vector<StateConfig> stateConfigs;                  ///< All state configurations
 
         Core::GameState currentState;                         ///< The current state
         std::chrono::steady_clock::time_point stateEnteredAt; ///< When current state was entered

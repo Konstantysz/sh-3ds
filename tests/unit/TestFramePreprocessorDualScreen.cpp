@@ -170,5 +170,3 @@ TEST_F(DualScreenTest, ProcessAndProcessDualScreenProduceSameTopROIs)
     EXPECT_EQ(singleRoi.cols, dualRoi.cols);
     EXPECT_EQ(singleRoi.rows, dualRoi.rows);
 }
-
-

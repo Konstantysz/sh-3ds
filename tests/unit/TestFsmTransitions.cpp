@@ -65,24 +65,27 @@ namespace
 
         builder.AddState({
             .id = "unknown",
-            .transitionsTo = {"dark_screen", "bright_screen"},
+            .transitionsTo = { "dark_screen", "bright_screen" },
             .maxDurationS = 120,
-            .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
+            .detectionParameters = MakeTopDetection(
+                "full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
         });
 
         builder.AddState({
             .id = "dark_screen",
-            .transitionsTo = {"bright_screen"},
+            .transitionsTo = { "bright_screen" },
             .maxDurationS = 10,
-            .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(180, 50, 50), 0.8, 1.0, 0.5, {}),
+            .detectionParameters = MakeTopDetection(
+                "full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(180, 50, 50), 0.8, 1.0, 0.5, {}),
         });
 
         builder.AddState({
             .id = "bright_screen",
-            .transitionsTo = {"dark_screen"},
+            .transitionsTo = { "dark_screen" },
             .maxDurationS = 10,
             .shinyCheck = true,
-            .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 200), cv::Scalar(180, 50, 255), 0.8, 1.0, 0.5, {}),
+            .detectionParameters = MakeTopDetection(
+                "full_screen", "color_histogram", cv::Scalar(0, 0, 200), cv::Scalar(180, 50, 255), 0.8, 1.0, 0.5, {}),
         });
 
         return builder.Build();
@@ -242,16 +245,18 @@ TEST(CXXStateTreeFSM, IsStuckWhenExceedingMaxDuration)
 
     builder.AddState({
         .id = "unknown",
-        .transitionsTo = {"dark_screen"},
+        .transitionsTo = { "dark_screen" },
         .maxDurationS = 120,
-        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
+        .detectionParameters = MakeTopDetection(
+            "full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
     });
 
     builder.AddState({
         .id = "dark_screen",
         .transitionsTo = {},
         .maxDurationS = 0, // 0 seconds = immediately stuck
-        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(180, 50, 50), 0.8, 1.0, 0.5, {}),
+        .detectionParameters = MakeTopDetection(
+            "full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(180, 50, 50), 0.8, 1.0, 0.5, {}),
     });
 
     auto fsm = builder.Build();
@@ -284,22 +289,25 @@ TEST(CXXStateTreeFSM, ReachabilityFilterBlocksUnreachableState)
     // state_a: detects red pixels, transitions to state_b only
     builder.AddState({
         .id = "state_a",
-        .transitionsTo = {"state_b"},
-        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 200, 200), cv::Scalar(10, 255, 255), 0.5, 1.0, 0.5, {}),
+        .transitionsTo = { "state_b" },
+        .detectionParameters = MakeTopDetection(
+            "full_screen", "color_histogram", cv::Scalar(0, 200, 200), cv::Scalar(10, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     // state_b: detects green pixels, transitions to state_c
     builder.AddState({
         .id = "state_b",
-        .transitionsTo = {"state_c"},
-        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(55, 200, 200), cv::Scalar(65, 255, 255), 0.5, 1.0, 0.5, {}),
+        .transitionsTo = { "state_c" },
+        .detectionParameters = MakeTopDetection(
+            "full_screen", "color_histogram", cv::Scalar(55, 200, 200), cv::Scalar(65, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     // state_c: detects blue pixels
     builder.AddState({
         .id = "state_c",
-        .transitionsTo = {"state_a"},
-        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(110, 200, 200), cv::Scalar(130, 255, 255), 0.5, 1.0, 0.5, {}),
+        .transitionsTo = { "state_a" },
+        .detectionParameters = MakeTopDetection(
+            "full_screen", "color_histogram", cv::Scalar(110, 200, 200), cv::Scalar(130, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     auto fsm = builder.Build();
@@ -328,14 +336,16 @@ TEST(CXXStateTreeFSM, ReachabilityFilterAllowsLegalTransition)
 
     builder.AddState({
         .id = "state_a",
-        .transitionsTo = {"state_b"},
-        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 200, 200), cv::Scalar(10, 255, 255), 0.5, 1.0, 0.5, {}),
+        .transitionsTo = { "state_b" },
+        .detectionParameters = MakeTopDetection(
+            "full_screen", "color_histogram", cv::Scalar(0, 200, 200), cv::Scalar(10, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     builder.AddState({
         .id = "state_b",
         .transitionsTo = {},
-        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(55, 200, 200), cv::Scalar(65, 255, 255), 0.5, 1.0, 0.5, {}),
+        .detectionParameters = MakeTopDetection(
+            "full_screen", "color_histogram", cv::Scalar(55, 200, 200), cv::Scalar(65, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     auto fsm = builder.Build();
@@ -362,15 +372,17 @@ TEST(CXXStateTreeFSM, IllegalTransitionResetsPendingState)
     // state_a detects red, can transition to state_b only
     builder.AddState({
         .id = "state_a",
-        .transitionsTo = {"state_b"},
-        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 200, 200), cv::Scalar(10, 255, 255), 0.5, 1.0, 0.5, {}),
+        .transitionsTo = { "state_b" },
+        .detectionParameters = MakeTopDetection(
+            "full_screen", "color_histogram", cv::Scalar(0, 200, 200), cv::Scalar(10, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     // state_b detects green
     builder.AddState({
         .id = "state_b",
         .transitionsTo = {},
-        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(55, 200, 200), cv::Scalar(65, 255, 255), 0.5, 1.0, 0.5, {}),
+        .detectionParameters = MakeTopDetection(
+            "full_screen", "color_histogram", cv::Scalar(55, 200, 200), cv::Scalar(65, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     auto fsm = builder.Build();
@@ -422,15 +434,17 @@ TEST(CXXStateTreeFSM, EmptyTransitionsToBlocksAllOutgoing)
     // state_a detects red and can transition to state_b
     builder.AddState({
         .id = "state_a",
-        .transitionsTo = {"state_b"},
-        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 200, 200), cv::Scalar(10, 255, 255), 0.5, 1.0, 0.5, {}),
+        .transitionsTo = { "state_b" },
+        .detectionParameters = MakeTopDetection(
+            "full_screen", "color_histogram", cv::Scalar(0, 200, 200), cv::Scalar(10, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     // state_b detects green too but has NO outgoing transitions (terminal state)
     builder.AddState({
         .id = "state_b",
         .transitionsTo = {},
-        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(55, 200, 200), cv::Scalar(65, 255, 255), 0.5, 1.0, 0.5, {}),
+        .detectionParameters = MakeTopDetection(
+            "full_screen", "color_histogram", cv::Scalar(55, 200, 200), cv::Scalar(65, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     auto fsm = builder.Build();
@@ -503,7 +517,7 @@ TEST(CXXStateTreeFSM, DualScreenModeRequiresBothTopAndBottomToPass)
 
     builder.AddState({
         .id = "unknown",
-        .transitionsTo = {"target"},
+        .transitionsTo = { "target" },
         .detectionParameters = MakeTopDetection(
             "top_roi", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
     });
@@ -563,7 +577,7 @@ TEST(CXXStateTreeFSM, SingleScreenModeSupportsTopOnlyStateDetection)
 
     builder.AddState({
         .id = "unknown",
-        .transitionsTo = {"target"},
+        .transitionsTo = { "target" },
         .detectionParameters = MakeTopDetection(
             "top_roi", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
     });
@@ -571,14 +585,8 @@ TEST(CXXStateTreeFSM, SingleScreenModeSupportsTopOnlyStateDetection)
     builder.AddState({
         .id = "target",
         .transitionsTo = {},
-        .detectionParameters = MakeTopDetection("top_roi",
-            "color_histogram",
-            cv::Scalar(0, 0, 200),
-            cv::Scalar(180, 50, 255),
-            0.8,
-            1.0,
-            0.5,
-            {}),
+        .detectionParameters = MakeTopDetection(
+            "top_roi", "color_histogram", cv::Scalar(0, 0, 200), cv::Scalar(180, 50, 255), 0.8, 1.0, 0.5, {}),
     });
 
     auto fsm = builder.Build();
@@ -599,7 +607,7 @@ TEST(CXXStateTreeFSM, SingleScreenModeSupportsBottomOnlyStateDetection)
 
     builder.AddState({
         .id = "unknown",
-        .transitionsTo = {"target"},
+        .transitionsTo = { "target" },
         .detectionParameters = MakeBottomDetection(
             "bottom_roi", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
     });
@@ -607,14 +615,8 @@ TEST(CXXStateTreeFSM, SingleScreenModeSupportsBottomOnlyStateDetection)
     builder.AddState({
         .id = "target",
         .transitionsTo = {},
-        .detectionParameters = MakeBottomDetection("bottom_roi",
-            "color_histogram",
-            cv::Scalar(0, 0, 200),
-            cv::Scalar(180, 50, 255),
-            0.8,
-            1.0,
-            0.5,
-            {}),
+        .detectionParameters = MakeBottomDetection(
+            "bottom_roi", "color_histogram", cv::Scalar(0, 0, 200), cv::Scalar(180, 50, 255), 0.8, 1.0, 0.5, {}),
     });
 
     auto fsm = builder.Build();
@@ -625,5 +627,3 @@ TEST(CXXStateTreeFSM, SingleScreenModeSupportsBottomOnlyStateDetection)
     ASSERT_TRUE(t.has_value());
     EXPECT_EQ(t->to, "target");
 }
-
-

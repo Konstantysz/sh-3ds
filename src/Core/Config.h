@@ -270,7 +270,7 @@ namespace SH3DS::Core
      */
     struct HuntDetectionParams
     {
-        ScreenMode screenMode = ScreenMode::Single;            ///< Device/config screen mode
+        ScreenMode screenMode = ScreenMode::Single;              ///< Device/config screen mode
         std::map<std::string, StateDetectionParams> stateParams; ///< Detection params per state
         int debounceFrames = 3;                                  ///< Frame debounce count
     };
@@ -284,9 +284,9 @@ namespace SH3DS::Core
     struct UnifiedHuntConfig
     {
         // Identity
-        std::string huntId;        ///< Unique identifier for this hunt config
-        std::string huntName;      ///< Human-readable name
-        std::string targetPokemon; ///< Target Pokémon
+        std::string huntId;                         ///< Unique identifier for this hunt config
+        std::string huntName;                       ///< Human-readable name
+        std::string targetPokemon;                  ///< Target Pokémon
         ScreenMode screenMode = ScreenMode::Single; ///< Single vs dual-screen detection mode
 
         // ROIs (fed to FramePreprocessor)
@@ -362,5 +362,3 @@ namespace SH3DS::Core
     HuntConfig ToHuntConfig(const UnifiedHuntConfig &unified);
 
 } // namespace SH3DS::Core
-
-

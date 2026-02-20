@@ -37,10 +37,9 @@ namespace SH3DS::Core
     {
         std::string ToLower(std::string value)
         {
-            std::transform(value.begin(),
-                value.end(),
-                value.begin(),
-                [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+                return static_cast<char>(std::tolower(ch));
+            });
             return value;
         }
 
@@ -48,8 +47,8 @@ namespace SH3DS::Core
         {
             if (!node || !node.IsScalar())
             {
-                throw std::runtime_error(context
-                                         + ": missing required scalar 'screen_mode' (expected 'single' or 'dual')");
+                throw std::runtime_error(
+                    context + ": missing required scalar 'screen_mode' (expected 'single' or 'dual')");
             }
 
             const std::string mode = ToLower(node.as<std::string>(""));
@@ -62,8 +61,8 @@ namespace SH3DS::Core
                 return ScreenMode::Dual;
             }
 
-            throw std::runtime_error(context + ": invalid screen_mode '" + node.as<std::string>("")
-                                     + "' (expected 'single' or 'dual')");
+            throw std::runtime_error(
+                context + ": invalid screen_mode '" + node.as<std::string>("") + "' (expected 'single' or 'dual')");
         }
 
         cv::Scalar ParseRequiredScalar(const YAML::Node &node, const std::string &fieldPath)
@@ -94,7 +93,8 @@ namespace SH3DS::Core
 
             if (params.threshold <= 0.0 || params.threshold > 1.0)
             {
-                throw std::runtime_error(path + ": threshold must be in (0,1], got " + std::to_string(params.threshold));
+                throw std::runtime_error(
+                    path + ": threshold must be in (0,1], got " + std::to_string(params.threshold));
             }
 
             if (method == "template_match")
@@ -126,8 +126,8 @@ namespace SH3DS::Core
             }
         }
 
-        RoiDetectionParams ParseRoiDetectionParams(
-            const YAML::Node &node, const std::string &stateId, const std::string &screen)
+        RoiDetectionParams
+            ParseRoiDetectionParams(const YAML::Node &node, const std::string &stateId, const std::string &screen)
         {
             if (!node || !node.IsMap())
             {
@@ -148,8 +148,8 @@ namespace SH3DS::Core
             {
                 if (!node["hsv_lower"] || !node["hsv_upper"])
                 {
-                    throw std::runtime_error(path + ": method '" + params.method
-                                             + "' requires both 'hsv_lower' and 'hsv_upper'");
+                    throw std::runtime_error(
+                        path + ": method '" + params.method + "' requires both 'hsv_lower' and 'hsv_upper'");
                 }
                 params.hsvLower = ParseRequiredScalar(node["hsv_lower"], path + ".hsv_lower");
                 params.hsvUpper = ParseRequiredScalar(node["hsv_upper"], path + ".hsv_upper");
@@ -159,8 +159,8 @@ namespace SH3DS::Core
             return params;
         }
 
-        StateDetectionParams ParseStateDetectionParams(
-            const YAML::Node &node, const std::string &stateId, ScreenMode screenMode)
+        StateDetectionParams
+            ParseStateDetectionParams(const YAML::Node &node, const std::string &stateId, ScreenMode screenMode)
         {
             if (!node || !node.IsMap())
             {
@@ -721,7 +721,3 @@ namespace SH3DS::Core
     }
 
 } // namespace SH3DS::Core
-
-
-
-

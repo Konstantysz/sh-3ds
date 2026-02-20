@@ -64,24 +64,27 @@ protected:
 
         builder.AddState({
             .id = "unknown",
-            .transitionsTo = {"dark_screen", "bright_screen"},
+            .transitionsTo = { "dark_screen", "bright_screen" },
             .maxDurationS = 120,
-            .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
+            .detectionParameters = MakeTopDetection(
+                "full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
         });
 
         builder.AddState({
             .id = "dark_screen",
-            .transitionsTo = {"bright_screen"},
+            .transitionsTo = { "bright_screen" },
             .maxDurationS = 30,
-            .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(180, 50, 50), 0.7, 1.0, 0.5, {}),
+            .detectionParameters = MakeTopDetection(
+                "full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(180, 50, 50), 0.7, 1.0, 0.5, {}),
         });
 
         builder.AddState({
             .id = "bright_screen",
-            .transitionsTo = {"dark_screen"},
+            .transitionsTo = { "dark_screen" },
             .maxDurationS = 30,
             .shinyCheck = true,
-            .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 200), cv::Scalar(180, 50, 255), 0.7, 1.0, 0.5, {}),
+            .detectionParameters = MakeTopDetection(
+                "full_screen", "color_histogram", cv::Scalar(0, 0, 200), cv::Scalar(180, 50, 255), 0.7, 1.0, 0.5, {}),
         });
 
         fsm = builder.Build();
@@ -172,5 +175,3 @@ TEST_F(ReplayPipelineTest, ShinyDetectorFindsShinySpriteInPipeline)
     auto result = detector->Detect(it->second);
     EXPECT_EQ(result.verdict, SH3DS::Core::ShinyVerdict::Shiny);
 }
-
-

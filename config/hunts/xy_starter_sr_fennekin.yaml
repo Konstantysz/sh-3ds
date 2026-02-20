@@ -209,4 +209,3 @@ recovery:
   on_detection_failure:
     action: "skip"
     max_consecutive: 10
-

@@ -16,9 +16,9 @@ namespace SH3DS::Capture
      */
     struct DualScreenResult
     {
-        cv::Mat warpedTop;                   ///< Full warped top screen image
-        cv::Mat warpedBottom;                ///< Full warped bottom screen image (empty if no calibration)
-        Core::ROISet topRois; ///< Extracted ROIs from top screen
+        cv::Mat warpedTop;       ///< Full warped top screen image
+        cv::Mat warpedBottom;    ///< Full warped bottom screen image (empty if no calibration)
+        Core::ROISet topRois;    ///< Extracted ROIs from top screen
         Core::ROISet bottomRois; ///< Extracted ROIs from bottom screen
     };
 
@@ -99,4 +99,3 @@ namespace SH3DS::Capture
         cv::Mat bottomWarpMatrix;                                       ///< Bottom screen warp matrix
     };
 } // namespace SH3DS::Capture
-
