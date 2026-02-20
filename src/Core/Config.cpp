@@ -4,6 +4,8 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <stdexcept>
 
@@ -33,30 +35,176 @@ namespace SH3DS::Core
 {
     namespace
     {
-        void ValidateStateDetectionParams(StateDetectionParams &sp, const std::string &stateId)
+        std::string ToLower(std::string value)
         {
-            if (sp.pixelRatioMin > sp.pixelRatioMax)
+            std::transform(value.begin(),
+                value.end(),
+                value.begin(),
+                [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+            return value;
+        }
+
+        ScreenMode ParseScreenMode(const YAML::Node &node, const std::string &context)
+        {
+            if (!node || !node.IsScalar())
             {
-                LOG_WARN("Config: state '{}' has pixelRatioMin ({:.3f}) > pixelRatioMax ({:.3f}) — swapping",
-                    stateId,
-                    sp.pixelRatioMin,
-                    sp.pixelRatioMax);
-                std::swap(sp.pixelRatioMin, sp.pixelRatioMax);
+                throw std::runtime_error(context
+                                         + ": missing required scalar 'screen_mode' (expected 'single' or 'dual')");
             }
-            if (sp.threshold <= 0.0 || sp.threshold > 1.0)
+
+            const std::string mode = ToLower(node.as<std::string>(""));
+            if (mode == "single")
             {
-                LOG_WARN(
-                    "Config: state '{}' threshold ({:.3f}) is outside (0,1] — clamping to 0.5", stateId, sp.threshold);
-                sp.threshold = 0.5;
+                return ScreenMode::Single;
             }
-            for (int ch = 0; ch < 3; ++ch)
+            if (mode == "dual")
             {
-                if (sp.hsvLower[ch] > sp.hsvUpper[ch])
+                return ScreenMode::Dual;
+            }
+
+            throw std::runtime_error(context + ": invalid screen_mode '" + node.as<std::string>("")
+                                     + "' (expected 'single' or 'dual')");
+        }
+
+        cv::Scalar ParseRequiredScalar(const YAML::Node &node, const std::string &fieldPath)
+        {
+            if (!node || !node.IsSequence() || node.size() < 3)
+            {
+                throw std::runtime_error(fieldPath + ": expected sequence [h,s,v]");
+            }
+
+            return cv::Scalar(node[0].as<double>(0.0),
+                node[1].as<double>(0.0),
+                node[2].as<double>(0.0),
+                node.size() > 3 ? node[3].as<double>(0.0) : 0.0);
+        }
+
+        void ValidateRoiDetectionParams(const RoiDetectionParams &params, const std::string &path)
+        {
+            const std::string method = ToLower(params.method);
+            if (method != "color_histogram" && method != "pixel_ratio" && method != "template_match")
+            {
+                throw std::runtime_error(path + ": unknown method '" + params.method + "'");
+            }
+
+            if (params.roi.empty())
+            {
+                throw std::runtime_error(path + ": missing required field 'roi'");
+            }
+
+            if (params.threshold <= 0.0 || params.threshold > 1.0)
+            {
+                throw std::runtime_error(path + ": threshold must be in (0,1], got " + std::to_string(params.threshold));
+            }
+
+            if (method == "template_match")
+            {
+                if (params.templatePath.empty())
                 {
-                    LOG_WARN("Config: state '{}' HSV channel {} is inverted — swapping", stateId, ch);
-                    std::swap(sp.hsvLower[ch], sp.hsvUpper[ch]);
+                    throw std::runtime_error(path + ": template_match requires non-empty 'template_path'");
                 }
             }
+            else
+            {
+                if (params.pixelRatioMin < 0.0 || params.pixelRatioMin > 1.0 || params.pixelRatioMax < 0.0
+                    || params.pixelRatioMax > 1.0)
+                {
+                    throw std::runtime_error(path + ": pixel_ratio_min/max must be in [0,1]");
+                }
+                if (params.pixelRatioMin > params.pixelRatioMax)
+                {
+                    throw std::runtime_error(path + ": pixel_ratio_min cannot exceed pixel_ratio_max");
+                }
+
+                for (int ch = 0; ch < 3; ++ch)
+                {
+                    if (params.hsvLower[ch] > params.hsvUpper[ch])
+                    {
+                        throw std::runtime_error(path + ": hsv_lower must be <= hsv_upper for each channel");
+                    }
+                }
+            }
+        }
+
+        RoiDetectionParams ParseRoiDetectionParams(
+            const YAML::Node &node, const std::string &stateId, const std::string &screen)
+        {
+            if (!node || !node.IsMap())
+            {
+                throw std::runtime_error("Config: fsm_states." + stateId + "." + screen + " must be a map");
+            }
+
+            const std::string path = "Config: fsm_states." + stateId + "." + screen;
+
+            RoiDetectionParams params;
+            params.roi = node["roi"].as<std::string>("");
+            params.method = ToLower(node["method"].as<std::string>(""));
+            params.templatePath = node["template_path"].as<std::string>("");
+            params.threshold = node["threshold"].as<double>(0.7);
+            params.pixelRatioMin = node["pixel_ratio_min"].as<double>(0.0);
+            params.pixelRatioMax = node["pixel_ratio_max"].as<double>(1.0);
+
+            if (params.method == "color_histogram" || params.method == "pixel_ratio")
+            {
+                if (!node["hsv_lower"] || !node["hsv_upper"])
+                {
+                    throw std::runtime_error(path + ": method '" + params.method
+                                             + "' requires both 'hsv_lower' and 'hsv_upper'");
+                }
+                params.hsvLower = ParseRequiredScalar(node["hsv_lower"], path + ".hsv_lower");
+                params.hsvUpper = ParseRequiredScalar(node["hsv_upper"], path + ".hsv_upper");
+            }
+
+            ValidateRoiDetectionParams(params, path);
+            return params;
+        }
+
+        StateDetectionParams ParseStateDetectionParams(
+            const YAML::Node &node, const std::string &stateId, ScreenMode screenMode)
+        {
+            if (!node || !node.IsMap())
+            {
+                throw std::runtime_error("Config: fsm_states." + stateId + " must be a map");
+            }
+
+            if (node["roi"] || node["method"] || node["hsv_lower"] || node["hsv_upper"] || node["pixel_ratio_min"]
+                || node["pixel_ratio_max"] || node["threshold"] || node["template_path"] || node["rois"]
+                || node["roi_mode"])
+            {
+                throw std::runtime_error("Config: fsm_states." + stateId
+                                         + " uses legacy state-level detection fields. Use 'top'/'bottom' blocks.");
+            }
+
+            StateDetectionParams state;
+            if (node["top"])
+            {
+                state.top = ParseRoiDetectionParams(node["top"], stateId, "top");
+            }
+            if (node["bottom"])
+            {
+                state.bottom = ParseRoiDetectionParams(node["bottom"], stateId, "bottom");
+            }
+
+            const bool hasTop = state.top.has_value();
+            const bool hasBottom = state.bottom.has_value();
+            if (screenMode == ScreenMode::Single)
+            {
+                if (hasTop == hasBottom)
+                {
+                    throw std::runtime_error("Config: fsm_states." + stateId
+                                             + " in single mode must define exactly one of 'top' or 'bottom'");
+                }
+            }
+            else
+            {
+                if (!hasTop && !hasBottom)
+                {
+                    throw std::runtime_error("Config: fsm_states." + stateId
+                                             + " in dual mode must define at least one of 'top' or 'bottom'");
+                }
+            }
+
+            return state;
         }
     } // namespace
 
@@ -224,6 +372,7 @@ namespace SH3DS::Core
         }
 
         HuntDetectionParams params;
+        params.screenMode = ParseScreenMode(root["screen_mode"], "Config");
         params.debounceFrames = root["debounce_frames"].as<int>(3);
         if (params.debounceFrames < 1)
         {
@@ -237,26 +386,7 @@ namespace SH3DS::Core
             {
                 std::string stateId = it->first.as<std::string>();
                 auto node = it->second;
-
-                StateDetectionParams sp;
-                sp.method = node["method"].as<std::string>("");
-                sp.roi = node["roi"].as<std::string>("");
-                sp.templatePath = node["template_path"].as<std::string>("");
-                sp.threshold = node["threshold"].as<double>(0.7);
-                sp.pixelRatioMin = node["pixel_ratio_min"].as<double>(0.0);
-                sp.pixelRatioMax = node["pixel_ratio_max"].as<double>(1.0);
-
-                if (node["hsv_lower"])
-                {
-                    sp.hsvLower = ParseScalar(node["hsv_lower"]);
-                }
-                if (node["hsv_upper"])
-                {
-                    sp.hsvUpper = ParseScalar(node["hsv_upper"]);
-                }
-
-                ValidateStateDetectionParams(sp, stateId);
-                params.stateParams[stateId] = sp;
+                params.stateParams[stateId] = ParseStateDetectionParams(node, stateId, params.screenMode);
             }
         }
 
@@ -361,6 +491,7 @@ namespace SH3DS::Core
         config.huntId = root["hunt_id"].as<std::string>("");
         config.huntName = root["hunt_name"].as<std::string>("");
         config.targetPokemon = root["target_pokemon"].as<std::string>("");
+        config.screenMode = ParseScreenMode(root["screen_mode"], "Config");
 
         // ROIs
         if (auto rois = root["rois"])
@@ -378,6 +509,7 @@ namespace SH3DS::Core
         }
 
         // FSM detection params
+        config.fsmParams.screenMode = config.screenMode;
         config.fsmParams.debounceFrames = root["debounce_frames"].as<int>(3);
         if (config.fsmParams.debounceFrames < 1)
         {
@@ -390,26 +522,8 @@ namespace SH3DS::Core
             {
                 std::string stateId = it->first.as<std::string>();
                 auto node = it->second;
-
-                StateDetectionParams sp;
-                sp.method = node["method"].as<std::string>("");
-                sp.roi = node["roi"].as<std::string>("");
-                sp.templatePath = node["template_path"].as<std::string>("");
-                sp.threshold = node["threshold"].as<double>(0.7);
-                sp.pixelRatioMin = node["pixel_ratio_min"].as<double>(0.0);
-                sp.pixelRatioMax = node["pixel_ratio_max"].as<double>(1.0);
-
-                if (node["hsv_lower"])
-                {
-                    sp.hsvLower = ParseScalar(node["hsv_lower"]);
-                }
-                if (node["hsv_upper"])
-                {
-                    sp.hsvUpper = ParseScalar(node["hsv_upper"]);
-                }
-
-                ValidateStateDetectionParams(sp, stateId);
-                config.fsmParams.stateParams[stateId] = sp;
+                config.fsmParams.stateParams[stateId] =
+                    ParseStateDetectionParams(node, stateId, config.fsmParams.screenMode);
             }
         }
 
@@ -607,3 +721,7 @@ namespace SH3DS::Core
     }
 
 } // namespace SH3DS::Core
+
+
+
+
