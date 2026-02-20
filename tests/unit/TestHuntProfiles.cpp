@@ -7,18 +7,21 @@ namespace
     SH3DS::Core::HuntDetectionParams MakeCompleteParams()
     {
         SH3DS::Core::StateDetectionParams defaultSp{
-            .roi = "full_screen",
-            .method = "color_histogram",
-            .hsvLower = cv::Scalar(0, 0, 0),
-            .hsvUpper = cv::Scalar(180, 255, 255),
-            .pixelRatioMin = 0.0,
-            .pixelRatioMax = 1.0,
-            .threshold = 0.5,
-            .templatePath = {},
+            .top = SH3DS::Core::RoiDetectionParams{
+                .roi = "full_screen",
+                .method = "color_histogram",
+                .hsvLower = cv::Scalar(0, 0, 0),
+                .hsvUpper = cv::Scalar(180, 255, 255),
+                .pixelRatioMin = 0.0,
+                .pixelRatioMax = 1.0,
+                .threshold = 0.5,
+                .templatePath = {},
+            },
         };
 
         SH3DS::Core::HuntDetectionParams params;
         params.debounceFrames = 2;
+        params.screenMode = SH3DS::Core::ScreenMode::Single;
         for (const auto &id : { "load_game",
                  "game_start",
                  "cutscene_part_1",

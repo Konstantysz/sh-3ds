@@ -90,9 +90,12 @@ TEST_F(DualScreenTest, ProcessDualScreenExtractsTopROIs)
     auto result = preprocessor.ProcessDualScreen(cameraFrame);
 
     ASSERT_TRUE(result.has_value());
-    ASSERT_TRUE(result->topRois.has_value());
-    EXPECT_TRUE(result->topRois->contains("top_full"));
-    EXPECT_TRUE(result->topRois->contains("top_strip"));
+    ASSERT_FALSE(result->topRois.empty());
+    EXPECT_TRUE(result->topRois.contains("top_full"));
+    EXPECT_TRUE(result->topRois.contains("top_strip"));
+    ASSERT_FALSE(result->bottomRois.empty());
+    EXPECT_TRUE(result->bottomRois.contains("top_full"));
+    EXPECT_TRUE(result->bottomRois.contains("top_strip"));
 }
 
 TEST_F(DualScreenTest, ProcessDualScreenWithoutBottomCalibration)
@@ -159,11 +162,13 @@ TEST_F(DualScreenTest, ProcessAndProcessDualScreenProduceSameTopROIs)
 
     ASSERT_TRUE(singleResult.has_value());
     ASSERT_TRUE(dualResult.has_value());
-    ASSERT_TRUE(dualResult->topRois.has_value());
+    ASSERT_FALSE(dualResult->topRois.empty());
 
     auto &singleRoi = singleResult->at("full");
-    auto &dualRoi = dualResult->topRois->at("full");
+    auto &dualRoi = dualResult->topRois.at("full");
 
     EXPECT_EQ(singleRoi.cols, dualRoi.cols);
     EXPECT_EQ(singleRoi.rows, dualRoi.rows);
 }
+
+

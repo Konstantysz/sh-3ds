@@ -32,8 +32,11 @@ namespace
     class StubFSM : public SH3DS::FSM::GameStateFSM
     {
     public:
-        std::optional<SH3DS::Core::StateTransition> Update(const SH3DS::Core::ROISet &) override
+        std::optional<SH3DS::Core::StateTransition> Update(const SH3DS::Core::ROISet &topRois,
+            const SH3DS::Core::ROISet &bottomRois) override
         {
+            (void)topRois;
+            (void)bottomRois;
             return std::nullopt;
         }
 

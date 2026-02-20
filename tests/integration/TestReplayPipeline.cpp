@@ -12,6 +12,32 @@
 
 /// Integration test: simulates a complete SR cycle with synthetic frames.
 /// Tests the pipeline: FramePreprocessor -> CXXStateTreeFSM -> ShinyDetector.
+namespace
+{
+    SH3DS::Core::StateDetectionParams MakeTopDetection(const std::string &roi,
+        const std::string &method,
+        const cv::Scalar &hsvLower,
+        const cv::Scalar &hsvUpper,
+        double pixelRatioMin,
+        double pixelRatioMax,
+        double threshold,
+        const std::string &templatePath)
+    {
+        SH3DS::Core::StateDetectionParams params;
+        params.top = SH3DS::Core::RoiDetectionParams{
+            .roi = roi,
+            .method = method,
+            .hsvLower = hsvLower,
+            .hsvUpper = hsvUpper,
+            .pixelRatioMin = pixelRatioMin,
+            .pixelRatioMax = pixelRatioMax,
+            .threshold = threshold,
+            .templatePath = templatePath,
+        };
+        return params;
+    }
+} // namespace
+
 class ReplayPipelineTest : public ::testing::Test
 {
 protected:
@@ -40,32 +66,14 @@ protected:
             .id = "unknown",
             .transitionsTo = {"dark_screen", "bright_screen"},
             .maxDurationS = 120,
-            .detectionParameters = {
-                .roi = "full_screen",
-                .method = "color_histogram",
-                .hsvLower = cv::Scalar(0, 0, 0),
-                .hsvUpper = cv::Scalar(0, 0, 0),
-                .pixelRatioMin = 0.0,
-                .pixelRatioMax = 1.0,
-                .threshold = 999.0,
-                .templatePath = {},
-            },
+            .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
         });
 
         builder.AddState({
             .id = "dark_screen",
             .transitionsTo = {"bright_screen"},
             .maxDurationS = 30,
-            .detectionParameters = {
-                .roi = "full_screen",
-                .method = "color_histogram",
-                .hsvLower = cv::Scalar(0, 0, 0),
-                .hsvUpper = cv::Scalar(180, 50, 50),
-                .pixelRatioMin = 0.7,
-                .pixelRatioMax = 1.0,
-                .threshold = 0.5,
-                .templatePath = {},
-            },
+            .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(180, 50, 50), 0.7, 1.0, 0.5, {}),
         });
 
         builder.AddState({
@@ -73,16 +81,7 @@ protected:
             .transitionsTo = {"dark_screen"},
             .maxDurationS = 30,
             .shinyCheck = true,
-            .detectionParameters = {
-                .roi = "full_screen",
-                .method = "color_histogram",
-                .hsvLower = cv::Scalar(0, 0, 200),
-                .hsvUpper = cv::Scalar(180, 50, 255),
-                .pixelRatioMin = 0.7,
-                .pixelRatioMax = 1.0,
-                .threshold = 0.5,
-                .templatePath = {},
-            },
+            .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 200), cv::Scalar(180, 50, 255), 0.7, 1.0, 0.5, {}),
         });
 
         fsm = builder.Build();
@@ -120,7 +119,7 @@ TEST_F(ReplayPipelineTest, FullPipelineDarkToBrightTransition)
         auto frame = MakeFrame(cv::Scalar(10, 10, 10));
         auto roiSet = preprocessor->Process(frame);
         ASSERT_TRUE(roiSet.has_value());
-        fsm->Update(*roiSet);
+        fsm->Update(*roiSet, {});
     }
     EXPECT_EQ(fsm->GetCurrentState(), "dark_screen");
 
@@ -130,7 +129,7 @@ TEST_F(ReplayPipelineTest, FullPipelineDarkToBrightTransition)
         auto frame = MakeFrame(cv::Scalar(240, 240, 240));
         auto roiSet = preprocessor->Process(frame);
         ASSERT_TRUE(roiSet.has_value());
-        fsm->Update(*roiSet);
+        fsm->Update(*roiSet, {});
     }
     EXPECT_EQ(fsm->GetCurrentState(), "bright_screen");
 
@@ -173,3 +172,5 @@ TEST_F(ReplayPipelineTest, ShinyDetectorFindsShinySpriteInPipeline)
     auto result = detector->Detect(it->second);
     EXPECT_EQ(result.verdict, SH3DS::Core::ShinyVerdict::Shiny);
 }
+
+

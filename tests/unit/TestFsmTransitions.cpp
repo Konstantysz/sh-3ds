@@ -11,6 +11,51 @@
 
 namespace
 {
+    SH3DS::Core::StateDetectionParams MakeTopDetection(const std::string &roi,
+        const std::string &method,
+        const cv::Scalar &hsvLower,
+        const cv::Scalar &hsvUpper,
+        double pixelRatioMin,
+        double pixelRatioMax,
+        double threshold,
+        const std::string &templatePath)
+    {
+        SH3DS::Core::StateDetectionParams params;
+        params.top = SH3DS::Core::RoiDetectionParams{
+            .roi = roi,
+            .method = method,
+            .hsvLower = hsvLower,
+            .hsvUpper = hsvUpper,
+            .pixelRatioMin = pixelRatioMin,
+            .pixelRatioMax = pixelRatioMax,
+            .threshold = threshold,
+            .templatePath = templatePath,
+        };
+        return params;
+    }
+
+    SH3DS::Core::StateDetectionParams MakeBottomDetection(const std::string &roi,
+        const std::string &method,
+        const cv::Scalar &hsvLower,
+        const cv::Scalar &hsvUpper,
+        double pixelRatioMin,
+        double pixelRatioMax,
+        double threshold,
+        const std::string &templatePath)
+    {
+        SH3DS::Core::StateDetectionParams params;
+        params.bottom = SH3DS::Core::RoiDetectionParams{
+            .roi = roi,
+            .method = method,
+            .hsvLower = hsvLower,
+            .hsvUpper = hsvUpper,
+            .pixelRatioMin = pixelRatioMin,
+            .pixelRatioMax = pixelRatioMax,
+            .threshold = threshold,
+            .templatePath = templatePath,
+        };
+        return params;
+    }
 
     std::unique_ptr<SH3DS::FSM::CXXStateTreeFSM> CreateTestFSM(int debounceFrames = 2)
     {
@@ -22,32 +67,14 @@ namespace
             .id = "unknown",
             .transitionsTo = {"dark_screen", "bright_screen"},
             .maxDurationS = 120,
-            .detectionParameters = {
-                .roi = "full_screen",
-                .method = "color_histogram",
-                .hsvLower = cv::Scalar(0, 0, 0),
-                .hsvUpper = cv::Scalar(0, 0, 0),
-                .pixelRatioMin = 0.0,
-                .pixelRatioMax = 1.0,
-                .threshold = 999.0,
-                .templatePath = {},
-            },
+            .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
         });
 
         builder.AddState({
             .id = "dark_screen",
             .transitionsTo = {"bright_screen"},
             .maxDurationS = 10,
-            .detectionParameters = {
-                .roi = "full_screen",
-                .method = "color_histogram",
-                .hsvLower = cv::Scalar(0, 0, 0),
-                .hsvUpper = cv::Scalar(180, 50, 50),
-                .pixelRatioMin = 0.8,
-                .pixelRatioMax = 1.0,
-                .threshold = 0.5,
-                .templatePath = {},
-            },
+            .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(180, 50, 50), 0.8, 1.0, 0.5, {}),
         });
 
         builder.AddState({
@@ -55,16 +82,7 @@ namespace
             .transitionsTo = {"dark_screen"},
             .maxDurationS = 10,
             .shinyCheck = true,
-            .detectionParameters = {
-                .roi = "full_screen",
-                .method = "color_histogram",
-                .hsvLower = cv::Scalar(0, 0, 200),
-                .hsvUpper = cv::Scalar(180, 50, 255),
-                .pixelRatioMin = 0.8,
-                .pixelRatioMax = 1.0,
-                .threshold = 0.5,
-                .templatePath = {},
-            },
+            .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 200), cv::Scalar(180, 50, 255), 0.8, 1.0, 0.5, {}),
         });
 
         return builder.Build();
@@ -106,10 +124,10 @@ TEST(CXXStateTreeFSM, DetectsDarkScreen)
     auto darkRoi = CreateDarkROI();
 
     // Need debounceFrames (2) consecutive detections
-    auto t1 = fsm->Update(darkRoi);
+    auto t1 = fsm->Update(darkRoi, {});
     EXPECT_FALSE(t1.has_value()); // First frame — pending
 
-    auto t2 = fsm->Update(darkRoi);
+    auto t2 = fsm->Update(darkRoi, {});
     ASSERT_TRUE(t2.has_value()); // Second frame — transition!
     EXPECT_EQ(t2->from, "unknown");
     EXPECT_EQ(t2->to, "dark_screen");
@@ -122,8 +140,8 @@ TEST(CXXStateTreeFSM, DetectsBrightScreen)
 
     auto brightRoi = CreateBrightROI();
 
-    fsm->Update(brightRoi);
-    auto t = fsm->Update(brightRoi);
+    fsm->Update(brightRoi, {});
+    auto t = fsm->Update(brightRoi, {});
     ASSERT_TRUE(t.has_value());
     EXPECT_EQ(t->to, "bright_screen");
 }
@@ -136,13 +154,13 @@ TEST(CXXStateTreeFSM, TransitionsFromDarkToBright)
     auto brightRoi = CreateBrightROI();
 
     // Transition to dark_screen
-    fsm->Update(darkRoi);
-    fsm->Update(darkRoi);
+    fsm->Update(darkRoi, {});
+    fsm->Update(darkRoi, {});
     EXPECT_EQ(fsm->GetCurrentState(), "dark_screen");
 
     // Transition to bright_screen
-    fsm->Update(brightRoi);
-    auto t = fsm->Update(brightRoi);
+    fsm->Update(brightRoi, {});
+    auto t = fsm->Update(brightRoi, {});
     ASSERT_TRUE(t.has_value());
     EXPECT_EQ(t->from, "dark_screen");
     EXPECT_EQ(t->to, "bright_screen");
@@ -154,9 +172,9 @@ TEST(CXXStateTreeFSM, DebouncePreventsSingleFrameTransition)
 
     auto darkRoi = CreateDarkROI();
 
-    EXPECT_FALSE(fsm->Update(darkRoi).has_value()); // Frame 1
-    EXPECT_FALSE(fsm->Update(darkRoi).has_value()); // Frame 2
-    EXPECT_TRUE(fsm->Update(darkRoi).has_value());  // Frame 3 — transition
+    EXPECT_FALSE(fsm->Update(darkRoi, {}).has_value()); // Frame 1
+    EXPECT_FALSE(fsm->Update(darkRoi, {}).has_value()); // Frame 2
+    EXPECT_TRUE(fsm->Update(darkRoi, {}).has_value());  // Frame 3 — transition
 }
 
 TEST(CXXStateTreeFSM, DebounceResetsOnDifferentState)
@@ -166,10 +184,10 @@ TEST(CXXStateTreeFSM, DebounceResetsOnDifferentState)
     auto darkRoi = CreateDarkROI();
     auto brightRoi = CreateBrightROI();
 
-    fsm->Update(darkRoi);                           // dark frame 1
-    fsm->Update(darkRoi);                           // dark frame 2
-    fsm->Update(brightRoi);                         // bright frame — resets dark debounce
-    EXPECT_FALSE(fsm->Update(darkRoi).has_value()); // dark frame 1 again (not 3)
+    fsm->Update(darkRoi, {});                           // dark frame 1
+    fsm->Update(darkRoi, {});                           // dark frame 2
+    fsm->Update(brightRoi, {});                         // bright frame — resets dark debounce
+    EXPECT_FALSE(fsm->Update(darkRoi, {}).has_value()); // dark frame 1 again (not 3)
 }
 
 TEST(CXXStateTreeFSM, StaysInCurrentStateWhenNoMatch)
@@ -178,7 +196,7 @@ TEST(CXXStateTreeFSM, StaysInCurrentStateWhenNoMatch)
 
     // Midtone ROI shouldn't match either dark or bright
     auto midRoi = CreateMidtoneROI();
-    EXPECT_FALSE(fsm->Update(midRoi).has_value());
+    EXPECT_FALSE(fsm->Update(midRoi, {}).has_value());
     EXPECT_EQ(fsm->GetCurrentState(), "unknown");
 }
 
@@ -187,8 +205,8 @@ TEST(CXXStateTreeFSM, ResetGoesBackToInitialState)
     auto fsm = CreateTestFSM();
     auto darkRoi = CreateDarkROI();
 
-    fsm->Update(darkRoi);
-    auto t = fsm->Update(darkRoi);
+    fsm->Update(darkRoi, {});
+    auto t = fsm->Update(darkRoi, {});
     ASSERT_TRUE(t.has_value());
     ASSERT_EQ(fsm->GetCurrentState(), "dark_screen");
 
@@ -204,10 +222,10 @@ TEST(CXXStateTreeFSM, HistoryRecordsTransitions)
     auto darkRoi = CreateDarkROI();
     auto brightRoi = CreateBrightROI();
 
-    fsm->Update(darkRoi);
-    fsm->Update(darkRoi); // -> dark_screen
-    fsm->Update(brightRoi);
-    fsm->Update(brightRoi); // -> bright_screen
+    fsm->Update(darkRoi, {});
+    fsm->Update(darkRoi, {}); // -> dark_screen
+    fsm->Update(brightRoi, {});
+    fsm->Update(brightRoi, {}); // -> bright_screen
 
     ASSERT_EQ(fsm->GetTransitionHistory().size(), 2u);
     EXPECT_EQ(fsm->GetTransitionHistory()[0].from, "unknown");
@@ -226,39 +244,21 @@ TEST(CXXStateTreeFSM, IsStuckWhenExceedingMaxDuration)
         .id = "unknown",
         .transitionsTo = {"dark_screen"},
         .maxDurationS = 120,
-        .detectionParameters = {
-            .roi = "full_screen",
-            .method = "color_histogram",
-            .hsvLower = cv::Scalar(0, 0, 0),
-            .hsvUpper = cv::Scalar(0, 0, 0),
-            .pixelRatioMin = 0.0,
-            .pixelRatioMax = 1.0,
-            .threshold = 999.0,
-            .templatePath = {},
-        },
+        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
     });
 
     builder.AddState({
         .id = "dark_screen",
         .transitionsTo = {},
         .maxDurationS = 0, // 0 seconds = immediately stuck
-        .detectionParameters = {
-            .roi = "full_screen",
-            .method = "color_histogram",
-            .hsvLower = cv::Scalar(0, 0, 0),
-            .hsvUpper = cv::Scalar(180, 50, 50),
-            .pixelRatioMin = 0.8,
-            .pixelRatioMax = 1.0,
-            .threshold = 0.5,
-            .templatePath = {},
-        },
+        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(180, 50, 50), 0.8, 1.0, 0.5, {}),
     });
 
     auto fsm = builder.Build();
 
     auto darkRoi = CreateDarkROI();
-    fsm->Update(darkRoi);
-    fsm->Update(darkRoi); // -> dark_screen
+    fsm->Update(darkRoi, {});
+    fsm->Update(darkRoi, {}); // -> dark_screen
 
     // Should be stuck immediately since maxDurationS = 0
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -285,48 +285,21 @@ TEST(CXXStateTreeFSM, ReachabilityFilterBlocksUnreachableState)
     builder.AddState({
         .id = "state_a",
         .transitionsTo = {"state_b"},
-        .detectionParameters = {
-            .roi = "full_screen",
-            .method = "color_histogram",
-            .hsvLower = cv::Scalar(0, 200, 200),
-            .hsvUpper = cv::Scalar(10, 255, 255),
-            .pixelRatioMin = 0.5,
-            .pixelRatioMax = 1.0,
-            .threshold = 0.5,
-            .templatePath = {},
-        },
+        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 200, 200), cv::Scalar(10, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     // state_b: detects green pixels, transitions to state_c
     builder.AddState({
         .id = "state_b",
         .transitionsTo = {"state_c"},
-        .detectionParameters = {
-            .roi = "full_screen",
-            .method = "color_histogram",
-            .hsvLower = cv::Scalar(55, 200, 200),
-            .hsvUpper = cv::Scalar(65, 255, 255),
-            .pixelRatioMin = 0.5,
-            .pixelRatioMax = 1.0,
-            .threshold = 0.5,
-            .templatePath = {},
-        },
+        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(55, 200, 200), cv::Scalar(65, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     // state_c: detects blue pixels
     builder.AddState({
         .id = "state_c",
         .transitionsTo = {"state_a"},
-        .detectionParameters = {
-            .roi = "full_screen",
-            .method = "color_histogram",
-            .hsvLower = cv::Scalar(110, 200, 200),
-            .hsvUpper = cv::Scalar(130, 255, 255),
-            .pixelRatioMin = 0.5,
-            .pixelRatioMax = 1.0,
-            .threshold = 0.5,
-            .templatePath = {},
-        },
+        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(110, 200, 200), cv::Scalar(130, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     auto fsm = builder.Build();
@@ -340,8 +313,8 @@ TEST(CXXStateTreeFSM, ReachabilityFilterBlocksUnreachableState)
     SH3DS::Core::ROISet blueRoi;
     blueRoi["full_screen"] = bgrBlue;
 
-    fsm->Update(blueRoi);
-    fsm->Update(blueRoi);
+    fsm->Update(blueRoi, {});
+    fsm->Update(blueRoi, {});
     // Without reachability filter, FSM would try to transition to state_c.
     // With the filter, state_c is not a candidate, so no transition happens.
     EXPECT_EQ(fsm->GetCurrentState(), "state_a");
@@ -356,31 +329,13 @@ TEST(CXXStateTreeFSM, ReachabilityFilterAllowsLegalTransition)
     builder.AddState({
         .id = "state_a",
         .transitionsTo = {"state_b"},
-        .detectionParameters = {
-            .roi = "full_screen",
-            .method = "color_histogram",
-            .hsvLower = cv::Scalar(0, 200, 200),
-            .hsvUpper = cv::Scalar(10, 255, 255),
-            .pixelRatioMin = 0.5,
-            .pixelRatioMax = 1.0,
-            .threshold = 0.5,
-            .templatePath = {},
-        },
+        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 200, 200), cv::Scalar(10, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     builder.AddState({
         .id = "state_b",
         .transitionsTo = {},
-        .detectionParameters = {
-            .roi = "full_screen",
-            .method = "color_histogram",
-            .hsvLower = cv::Scalar(55, 200, 200),
-            .hsvUpper = cv::Scalar(65, 255, 255),
-            .pixelRatioMin = 0.5,
-            .pixelRatioMax = 1.0,
-            .threshold = 0.5,
-            .templatePath = {},
-        },
+        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(55, 200, 200), cv::Scalar(65, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     auto fsm = builder.Build();
@@ -392,8 +347,8 @@ TEST(CXXStateTreeFSM, ReachabilityFilterAllowsLegalTransition)
     SH3DS::Core::ROISet greenRoi;
     greenRoi["full_screen"] = bgrGreen;
 
-    fsm->Update(greenRoi);
-    auto t = fsm->Update(greenRoi);
+    fsm->Update(greenRoi, {});
+    auto t = fsm->Update(greenRoi, {});
     ASSERT_TRUE(t.has_value());
     EXPECT_EQ(t->to, "state_b");
 }
@@ -408,32 +363,14 @@ TEST(CXXStateTreeFSM, IllegalTransitionResetsPendingState)
     builder.AddState({
         .id = "state_a",
         .transitionsTo = {"state_b"},
-        .detectionParameters = {
-            .roi = "full_screen",
-            .method = "color_histogram",
-            .hsvLower = cv::Scalar(0, 200, 200),
-            .hsvUpper = cv::Scalar(10, 255, 255),
-            .pixelRatioMin = 0.5,
-            .pixelRatioMax = 1.0,
-            .threshold = 0.5,
-            .templatePath = {},
-        },
+        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 200, 200), cv::Scalar(10, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     // state_b detects green
     builder.AddState({
         .id = "state_b",
         .transitionsTo = {},
-        .detectionParameters = {
-            .roi = "full_screen",
-            .method = "color_histogram",
-            .hsvLower = cv::Scalar(55, 200, 200),
-            .hsvUpper = cv::Scalar(65, 255, 255),
-            .pixelRatioMin = 0.5,
-            .pixelRatioMax = 1.0,
-            .threshold = 0.5,
-            .templatePath = {},
-        },
+        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(55, 200, 200), cv::Scalar(65, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     auto fsm = builder.Build();
@@ -446,8 +383,8 @@ TEST(CXXStateTreeFSM, IllegalTransitionResetsPendingState)
     greenRoi["full_screen"] = bgrGreen;
 
     // After debounce, should transition to state_b (legal from state_a)
-    fsm->Update(greenRoi);
-    auto t = fsm->Update(greenRoi);
+    fsm->Update(greenRoi, {});
+    auto t = fsm->Update(greenRoi, {});
     ASSERT_TRUE(t.has_value());
     EXPECT_EQ(t->from, "state_a");
     EXPECT_EQ(t->to, "state_b");
@@ -459,8 +396,8 @@ TEST(CXXStateTreeFSM, ResetRebuildsSyncedTree)
     auto fsm = CreateTestFSM();
     auto brightRoi = CreateBrightROI();
 
-    fsm->Update(brightRoi);
-    auto toBright = fsm->Update(brightRoi);
+    fsm->Update(brightRoi, {});
+    auto toBright = fsm->Update(brightRoi, {});
     ASSERT_TRUE(toBright.has_value());
     ASSERT_EQ(fsm->GetCurrentState(), "bright_screen");
 
@@ -470,8 +407,8 @@ TEST(CXXStateTreeFSM, ResetRebuildsSyncedTree)
 
     // After reset the tree is rebuilt; legal transitions from unknown should work.
     auto darkRoi = CreateDarkROI();
-    fsm->Update(darkRoi);
-    auto t = fsm->Update(darkRoi);
+    fsm->Update(darkRoi, {});
+    auto t = fsm->Update(darkRoi, {});
     ASSERT_TRUE(t.has_value());
     EXPECT_EQ(t->to, "dark_screen");
 }
@@ -486,32 +423,14 @@ TEST(CXXStateTreeFSM, EmptyTransitionsToBlocksAllOutgoing)
     builder.AddState({
         .id = "state_a",
         .transitionsTo = {"state_b"},
-        .detectionParameters = {
-            .roi = "full_screen",
-            .method = "color_histogram",
-            .hsvLower = cv::Scalar(0, 200, 200),
-            .hsvUpper = cv::Scalar(10, 255, 255),
-            .pixelRatioMin = 0.5,
-            .pixelRatioMax = 1.0,
-            .threshold = 0.5,
-            .templatePath = {},
-        },
+        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(0, 200, 200), cv::Scalar(10, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     // state_b detects green too but has NO outgoing transitions (terminal state)
     builder.AddState({
         .id = "state_b",
         .transitionsTo = {},
-        .detectionParameters = {
-            .roi = "full_screen",
-            .method = "color_histogram",
-            .hsvLower = cv::Scalar(55, 200, 200),
-            .hsvUpper = cv::Scalar(65, 255, 255),
-            .pixelRatioMin = 0.5,
-            .pixelRatioMax = 1.0,
-            .threshold = 0.5,
-            .templatePath = {},
-        },
+        .detectionParameters = MakeTopDetection("full_screen", "color_histogram", cv::Scalar(55, 200, 200), cv::Scalar(65, 255, 255), 0.5, 1.0, 0.5, {}),
     });
 
     auto fsm = builder.Build();
@@ -523,15 +442,15 @@ TEST(CXXStateTreeFSM, EmptyTransitionsToBlocksAllOutgoing)
     SH3DS::Core::ROISet greenRoi;
     greenRoi["full_screen"] = bgrGreen;
 
-    fsm->Update(greenRoi);
-    auto t = fsm->Update(greenRoi);
+    fsm->Update(greenRoi, {});
+    auto t = fsm->Update(greenRoi, {});
     ASSERT_TRUE(t.has_value());
     EXPECT_EQ(t->to, "state_b");
 
     // Now in state_b: green still matches state_b detection, but state_b has no transitions.
     // The FSM should not loop or crash — it stays in state_b.
-    EXPECT_FALSE(fsm->Update(greenRoi).has_value());
-    EXPECT_FALSE(fsm->Update(greenRoi).has_value());
+    EXPECT_FALSE(fsm->Update(greenRoi, {}).has_value());
+    EXPECT_FALSE(fsm->Update(greenRoi, {}).has_value());
     EXPECT_EQ(fsm->GetCurrentState(), "state_b");
 }
 
@@ -543,8 +462,8 @@ TEST(CXXStateTreeFSM, InitialStateReturnsBuilderInitialState)
 
     // Remains stable after transitions.
     auto darkRoi = CreateDarkROI();
-    fsm->Update(darkRoi);
-    fsm->Update(darkRoi);
+    fsm->Update(darkRoi, {});
+    fsm->Update(darkRoi, {});
     EXPECT_EQ(fsm->GetInitialState(), "unknown");
 
     // Remains stable after Reset.
@@ -559,8 +478,8 @@ TEST(CXXStateTreeFSM, ResetToInitialStateAllowsNormalDetection)
 
     // Drive into dark_screen
     auto darkRoi = CreateDarkROI();
-    fsm->Update(darkRoi);
-    fsm->Update(darkRoi);
+    fsm->Update(darkRoi, {});
+    fsm->Update(darkRoi, {});
     ASSERT_EQ(fsm->GetCurrentState(), "dark_screen");
 
     // Simulate watchdog abort path reset
@@ -569,8 +488,142 @@ TEST(CXXStateTreeFSM, ResetToInitialStateAllowsNormalDetection)
 
     // FSM should be able to transition again from unknown
     auto brightRoi = CreateBrightROI();
-    fsm->Update(brightRoi);
-    auto t = fsm->Update(brightRoi);
+    fsm->Update(brightRoi, {});
+    auto t = fsm->Update(brightRoi, {});
     ASSERT_TRUE(t.has_value());
     EXPECT_EQ(t->to, "bright_screen");
 }
+
+TEST(CXXStateTreeFSM, DualScreenModeRequiresBothTopAndBottomToPass)
+{
+    SH3DS::FSM::CXXStateTreeFSM::Builder builder;
+    builder.SetInitialState("unknown");
+    builder.SetDebounceFrames(1);
+    builder.SetScreenMode(SH3DS::Core::ScreenMode::Dual);
+
+    builder.AddState({
+        .id = "unknown",
+        .transitionsTo = {"target"},
+        .detectionParameters = MakeTopDetection(
+            "top_roi", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
+    });
+
+    SH3DS::Core::StateDetectionParams dualParams;
+    dualParams.top = SH3DS::Core::RoiDetectionParams{
+        .roi = "top_roi",
+        .method = "color_histogram",
+        .hsvLower = cv::Scalar(0, 0, 200),
+        .hsvUpper = cv::Scalar(180, 50, 255),
+        .pixelRatioMin = 0.8,
+        .pixelRatioMax = 1.0,
+        .threshold = 0.5,
+        .templatePath = {},
+    };
+    dualParams.bottom = SH3DS::Core::RoiDetectionParams{
+        .roi = "bottom_roi",
+        .method = "color_histogram",
+        .hsvLower = cv::Scalar(0, 0, 200),
+        .hsvUpper = cv::Scalar(180, 50, 255),
+        .pixelRatioMin = 0.8,
+        .pixelRatioMax = 1.0,
+        .threshold = 0.5,
+        .templatePath = {},
+    };
+
+    builder.AddState({
+        .id = "target",
+        .transitionsTo = {},
+        .detectionParameters = dualParams,
+    });
+
+    auto fsm = builder.Build();
+
+    SH3DS::Core::ROISet topRoisDark;
+    topRoisDark["top_roi"] = cv::Mat(240, 400, CV_8UC3, cv::Scalar(10, 10, 10));
+    SH3DS::Core::ROISet bottomRoisBright;
+    bottomRoisBright["bottom_roi"] = cv::Mat(240, 320, CV_8UC3, cv::Scalar(240, 240, 240));
+
+    EXPECT_FALSE(fsm->Update(topRoisDark, bottomRoisBright).has_value());
+    EXPECT_EQ(fsm->GetCurrentState(), "unknown");
+
+    SH3DS::Core::ROISet topRoisBright;
+    topRoisBright["top_roi"] = cv::Mat(240, 400, CV_8UC3, cv::Scalar(240, 240, 240));
+
+    auto t = fsm->Update(topRoisBright, bottomRoisBright);
+    ASSERT_TRUE(t.has_value());
+    EXPECT_EQ(t->to, "target");
+}
+
+TEST(CXXStateTreeFSM, SingleScreenModeSupportsTopOnlyStateDetection)
+{
+    SH3DS::FSM::CXXStateTreeFSM::Builder builder;
+    builder.SetInitialState("unknown");
+    builder.SetDebounceFrames(1);
+    builder.SetScreenMode(SH3DS::Core::ScreenMode::Single);
+
+    builder.AddState({
+        .id = "unknown",
+        .transitionsTo = {"target"},
+        .detectionParameters = MakeTopDetection(
+            "top_roi", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
+    });
+
+    builder.AddState({
+        .id = "target",
+        .transitionsTo = {},
+        .detectionParameters = MakeTopDetection("top_roi",
+            "color_histogram",
+            cv::Scalar(0, 0, 200),
+            cv::Scalar(180, 50, 255),
+            0.8,
+            1.0,
+            0.5,
+            {}),
+    });
+
+    auto fsm = builder.Build();
+    SH3DS::Core::ROISet topRoisBright;
+    topRoisBright["top_roi"] = cv::Mat(240, 400, CV_8UC3, cv::Scalar(240, 240, 240));
+
+    auto t = fsm->Update(topRoisBright, {});
+    ASSERT_TRUE(t.has_value());
+    EXPECT_EQ(t->to, "target");
+}
+
+TEST(CXXStateTreeFSM, SingleScreenModeSupportsBottomOnlyStateDetection)
+{
+    SH3DS::FSM::CXXStateTreeFSM::Builder builder;
+    builder.SetInitialState("unknown");
+    builder.SetDebounceFrames(1);
+    builder.SetScreenMode(SH3DS::Core::ScreenMode::Single);
+
+    builder.AddState({
+        .id = "unknown",
+        .transitionsTo = {"target"},
+        .detectionParameters = MakeBottomDetection(
+            "bottom_roi", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
+    });
+
+    builder.AddState({
+        .id = "target",
+        .transitionsTo = {},
+        .detectionParameters = MakeBottomDetection("bottom_roi",
+            "color_histogram",
+            cv::Scalar(0, 0, 200),
+            cv::Scalar(180, 50, 255),
+            0.8,
+            1.0,
+            0.5,
+            {}),
+    });
+
+    auto fsm = builder.Build();
+    SH3DS::Core::ROISet topRoisBright;
+    topRoisBright["bottom_roi"] = cv::Mat(240, 400, CV_8UC3, cv::Scalar(240, 240, 240));
+
+    auto t = fsm->Update(topRoisBright, {});
+    ASSERT_TRUE(t.has_value());
+    EXPECT_EQ(t->to, "target");
+}
+
+
