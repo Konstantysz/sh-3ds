@@ -1,8 +1,10 @@
 add_library(
   sh3ds_vision STATIC
   DominantColorDetector.cpp
+  ColorImprovement.cpp
   HistogramDetector.cpp
   HistogramUtils.cpp
+  IntensityEventDetector.cpp
   TemplateMatcher.cpp
 )
 add_library(SH3DS::Vision ALIAS sh3ds_vision)

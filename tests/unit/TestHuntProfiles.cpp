@@ -18,6 +18,7 @@ namespace
                     .threshold = 0.5,
                     .templatePath = {},
                 },
+            .bottom = std::nullopt
         };
 
         SH3DS::Core::HuntDetectionParams params;

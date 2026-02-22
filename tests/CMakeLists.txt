@@ -53,6 +53,12 @@ target_link_libraries(TestOrchestrator PRIVATE SH3DS::Pipeline SH3DS::Core SH3DS
 sh3ds_add_test(TestShinyDetector unit/TestShinyDetector.cpp)
 target_link_libraries(TestShinyDetector PRIVATE SH3DS::Vision)
 
+sh3ds_add_test(TestFrameCorrector unit/TestFrameCorrector.cpp)
+target_link_libraries(TestFrameCorrector PRIVATE SH3DS::Vision)
+
+sh3ds_add_test(TestIntensityEventDetector unit/TestIntensityEventDetector.cpp)
+target_link_libraries(TestIntensityEventDetector PRIVATE SH3DS::Vision)
+
 sh3ds_add_test(TestFileFrameSourceSeek unit/TestFileFrameSourceSeek.cpp)
 target_link_libraries(TestFileFrameSourceSeek PRIVATE SH3DS::Capture)
 
