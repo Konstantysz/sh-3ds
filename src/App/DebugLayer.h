@@ -107,6 +107,9 @@ namespace SH3DS::App
         cv::Mat currentTopScreen;    ///< Current warped top screen
         cv::Mat currentBottomScreen; ///< Current warped bottom screen
 
+        // Display options
+        bool applyColorImprovementToDisplay = false; ///< Whether to apply color correction to displayed warped frames
+
         // State info
         std::string currentStateName = "unknown";            ///< Current FSM state
         float timeInState = 0.0f;                            ///< Time in current state (seconds)

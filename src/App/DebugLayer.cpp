@@ -2,6 +2,7 @@
 
 #include "Kappa/Logger.h"
 #include "TextureUploader.h"
+#include "Vision/ColorImprovement.h"
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -165,6 +166,26 @@ namespace SH3DS::App
             return;
         }
 
+        if (applyColorImprovementToDisplay)
+        {
+            if (!dualScreenResult->warpedTop.empty())
+            {
+                dualScreenResult->warpedTop = Vision::ImproveFrameColors(dualScreenResult->warpedTop);
+            }
+            if (!dualScreenResult->warpedBottom.empty())
+            {
+                dualScreenResult->warpedBottom = Vision::ImproveFrameColors(dualScreenResult->warpedBottom);
+            }
+        }
+        for (auto &[name, roi] : dualScreenResult->topRois)
+        {
+            roi = Vision::ImproveFrameColors(roi);
+        }
+        for (auto &[name, roi] : dualScreenResult->bottomRois)
+        {
+            roi = Vision::ImproveFrameColors(roi);
+        }
+
         if (!dualScreenResult->warpedTop.empty())
         {
             currentTopScreen = dualScreenResult->warpedTop;
@@ -241,6 +262,13 @@ namespace SH3DS::App
         ImGui::Begin("State Info");
 
         ImGui::Text("Frame: %zu / %zu", playback.GetCurrentFrameIndex() + 1, playback.GetTotalFrames());
+
+        ImGui::Separator();
+
+        if (ImGui::Checkbox("Color Correction (display)", &applyColorImprovementToDisplay))
+        {
+            lastProcessedFrame = SIZE_MAX; // force re-process with new setting
+        }
 
         ImGui::Separator();
 

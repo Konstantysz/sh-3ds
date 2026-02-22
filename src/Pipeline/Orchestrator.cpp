@@ -1,6 +1,7 @@
 #include "Orchestrator.h"
 
 #include "Kappa/Logger.h"
+#include "Vision/ColorImprovement.h"
 
 #include <chrono>
 #include <thread>
@@ -138,6 +139,15 @@ namespace SH3DS::Pipeline
         {
             LOG_DEBUG("Orchestrator: Screen not detected in frame #{}", frame->metadata.sequenceNumber);
             return;
+        }
+
+        for (auto &[name, roi] : dualScreenResult->topRois)
+        {
+            roi = Vision::ImproveFrameColors(roi);
+        }
+        for (auto &[name, roi] : dualScreenResult->bottomRois)
+        {
+            roi = Vision::ImproveFrameColors(roi);
         }
 
         LOG_DEBUG("Orchestrator: Updating FSM...");
