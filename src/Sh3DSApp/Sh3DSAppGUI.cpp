@@ -12,6 +12,7 @@
 #include "Vision/DominantColorDetector.h"
 
 #include <CLI/CLI.hpp>
+#include <spdlog/spdlog.h>
 
 #include <csignal>
 #include <memory>
@@ -30,6 +31,11 @@ int main(int argc, char *argv[])
 {
     // Set logger name before any logging
     Kappa::Logger::SetLoggerName("SH-3DS");
+
+#ifndef NDEBUG
+    Kappa::Logger::Get().SetLevel(spdlog::level::debug);
+    LOG_DEBUG("Log level set to Debug for debug build");
+#endif
 
     CLI::App app{ "SH-3DS: Networked Shiny Hunting Bot" };
 

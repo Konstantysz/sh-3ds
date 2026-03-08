@@ -112,6 +112,56 @@ namespace
         return rois;
     }
 
+    // Creates a BGR ROI with an average V value matching the given normalized V (0.0-1.0).
+    // A grey pixel in BGR has equal B=G=R, which maps to V = that value in HSV.
+    SH3DS::Core::ROISet CreateVValueROI(double vNormalized, const std::string &roiName = "top_full")
+    {
+        const auto vByte = static_cast<uint8_t>(std::clamp(vNormalized * 255.0, 0.0, 255.0));
+        SH3DS::Core::ROISet rois;
+        rois[roiName] = cv::Mat(240, 400, CV_8UC3, cv::Scalar(vByte, vByte, vByte));
+        return rois;
+    }
+
+    // Two-state FSM in Single mode with debounce=1.
+    // state_a: color_histogram with threshold=999.0 (never fires naturally), transitions to state_b.
+    // state_b: intensity_event on top_full, no transitions.
+    std::unique_ptr<SH3DS::FSM::CXXStateTreeFSM> CreateIntensityFSM()
+    {
+        SH3DS::FSM::CXXStateTreeFSM::Builder builder;
+        builder.SetInitialState("state_a");
+        builder.SetDebounceFrames(1);
+        builder.SetScreenMode(SH3DS::Core::ScreenMode::Single);
+
+        builder.AddState({
+            .id = "state_a",
+            .transitionsTo = { "state_b" },
+            .maxDurationS = 120,
+            .detectionParameters = MakeTopDetection(
+                "top_full", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
+        });
+
+        SH3DS::Core::StateDetectionParams intensityParams;
+        intensityParams.top = SH3DS::Core::RoiDetectionParams{
+            .roi = "top_full",
+            .method = "intensity_event",
+            .hsvLower = {},
+            .hsvUpper = {},
+            .pixelRatioMin = 0.0,
+            .pixelRatioMax = 1.0,
+            .threshold = 0.5,
+            .templatePath = {},
+        };
+
+        builder.AddState({
+            .id = "state_b",
+            .transitionsTo = {},
+            .maxDurationS = 120,
+            .detectionParameters = intensityParams,
+        });
+
+        return builder.Build();
+    }
+
 } // namespace
 
 TEST(CXXStateTreeFSM, InitialStateIsFromProfile)
@@ -626,4 +676,117 @@ TEST(CXXStateTreeFSM, SingleScreenModeSupportsBottomOnlyStateDetection)
     auto t = fsm->Update(topRoisBright, {});
     ASSERT_TRUE(t.has_value());
     EXPECT_EQ(t->to, "target");
+}
+
+TEST(CXXStateTreeFSM, IntensityEventNoTransitionWithoutDropRaise)
+{
+    auto fsm = CreateIntensityFSM();
+
+    // Feed only bright frames — no Drop event, so no Drop+Raise pair, no transition
+    for (int i = 0; i < 10; ++i)
+    {
+        EXPECT_FALSE(fsm->Update(CreateVValueROI(0.9), {}).has_value());
+    }
+    EXPECT_EQ(fsm->GetCurrentState(), "state_a");
+}
+
+TEST(CXXStateTreeFSM, IntensityEventTransitionsAfterDropRaise)
+{
+    auto fsm = CreateIntensityFSM();
+
+    // Prime the detector with bright frames to establish vMax
+    fsm->Update(CreateVValueROI(0.9), {});
+    fsm->Update(CreateVValueROI(0.9), {});
+
+    // Drop (screen goes black)
+    fsm->Update(CreateVValueROI(0.02), {});
+
+    // Raise (screen recovers) — should fire the transition on this frame
+    auto t = fsm->Update(CreateVValueROI(0.9), {});
+    ASSERT_TRUE(t.has_value());
+    EXPECT_EQ(t->from, "state_a");
+    EXPECT_EQ(t->to, "state_b");
+}
+
+TEST(CXXStateTreeFSM, IntensityEventDoesNotFireAgainAfterTransition)
+{
+    auto fsm = CreateIntensityFSM();
+
+    // Prime and get to state_b
+    fsm->Update(CreateVValueROI(0.9), {});
+    fsm->Update(CreateVValueROI(0.9), {});
+    fsm->Update(CreateVValueROI(0.02), {});
+    auto t = fsm->Update(CreateVValueROI(0.9), {});
+    ASSERT_TRUE(t.has_value());
+    ASSERT_EQ(fsm->GetCurrentState(), "state_b");
+
+    // state_b has no transitions — further Drop+Raise cycles must not fire
+    fsm->Update(CreateVValueROI(0.02), {});
+    EXPECT_FALSE(fsm->Update(CreateVValueROI(0.9), {}).has_value());
+    EXPECT_EQ(fsm->GetCurrentState(), "state_b");
+}
+
+TEST(CXXStateTreeFSM, IntensityEventResetClearsBaseline)
+{
+    auto fsm = CreateIntensityFSM();
+
+    // Prime and transition to state_b
+    fsm->Update(CreateVValueROI(0.9), {});
+    fsm->Update(CreateVValueROI(0.9), {});
+    fsm->Update(CreateVValueROI(0.02), {});
+    fsm->Update(CreateVValueROI(0.9), {}); // -> state_b
+
+    // Reset returns to state_a with a fresh intensity detector
+    fsm->Reset();
+    ASSERT_EQ(fsm->GetCurrentState(), "state_a");
+
+    // A fresh Drop+Raise from state_a should transition to state_b again
+    fsm->Update(CreateVValueROI(0.9), {});
+    fsm->Update(CreateVValueROI(0.9), {});
+    fsm->Update(CreateVValueROI(0.02), {});
+    auto t = fsm->Update(CreateVValueROI(0.9), {});
+    ASSERT_TRUE(t.has_value());
+    EXPECT_EQ(t->to, "state_b");
+}
+
+TEST(CXXStateTreeFSM, AlwaysTrueMethodAlwaysReturnsMaxConfidence)
+{
+    SH3DS::FSM::CXXStateTreeFSM::Builder builder;
+    builder.SetInitialState("state_a");
+    builder.SetDebounceFrames(1);
+    builder.SetScreenMode(SH3DS::Core::ScreenMode::Single);
+
+    builder.AddState({
+        .id = "state_a",
+        .transitionsTo = { "state_b" },
+        .maxDurationS = 120,
+        .detectionParameters = MakeTopDetection(
+            "top_full", "color_histogram", cv::Scalar(0, 0, 0), cv::Scalar(0, 0, 0), 0.0, 1.0, 999.0, {}),
+    });
+
+    SH3DS::Core::StateDetectionParams alwaysTrueParams;
+    alwaysTrueParams.top = SH3DS::Core::RoiDetectionParams{
+        .roi = "top_full",
+        .method = "always_true",
+        .hsvLower = {},
+        .hsvUpper = {},
+        .pixelRatioMin = 0.0,
+        .pixelRatioMax = 1.0,
+        .threshold = 0.5,
+        .templatePath = {},
+    };
+
+    builder.AddState({
+        .id = "state_b",
+        .transitionsTo = {},
+        .maxDurationS = 120,
+        .detectionParameters = alwaysTrueParams,
+    });
+
+    auto fsm = builder.Build();
+
+    // Any non-empty ROI should immediately satisfy always_true
+    auto t = fsm->Update(CreateVValueROI(0.5), {});
+    ASSERT_TRUE(t.has_value());
+    EXPECT_EQ(t->to, "state_b");
 }

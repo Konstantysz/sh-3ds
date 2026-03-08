@@ -1,5 +1,6 @@
 #include "SoftResetStrategy.h"
 
+#include "Core/Constants.h"
 #include "Input/InputCommand.h"
 #include "Kappa/Logger.h"
 
@@ -102,12 +103,12 @@ namespace SH3DS::Strategy
             }
         }
 
-        // Execute button actions
+        // Execute button or touch actions
         if (static_cast<size_t>(actionIndex) < stateActions.size())
         {
             const auto &action = stateActions[static_cast<size_t>(actionIndex)];
 
-            if (!action.buttons.empty())
+            if (!action.buttons.empty() || action.touch)
             {
                 auto now = std::chrono::steady_clock::now();
                 auto timeSinceLastAction = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastActionTime);
@@ -117,6 +118,12 @@ namespace SH3DS::Strategy
                     lastActionTime = now;
 
                     Input::InputCommand cmd = BuildInputCommand(action.buttons);
+                    if (action.touch)
+                    {
+                        cmd.touch.touching = true;
+                        cmd.touch.x = static_cast<uint16_t>(action.touchX * Core::kBottomScreenWidth);
+                        cmd.touch.y = static_cast<uint16_t>(action.touchY * Core::kBottomScreenHeight);
+                    }
 
                     if (!action.repeat)
                     {

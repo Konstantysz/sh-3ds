@@ -166,24 +166,17 @@ namespace SH3DS::App
             return;
         }
 
-        if (applyColorImprovementToDisplay)
+        // Apply color correction to the full warped top image before ROI extraction so that
+        // Gray World WB has the complete scene to compute balanced gains. Bottom screen is
+        // LCD-rendered UI — WB correction is not applied.
+        if (!dualScreenResult->warpedTop.empty())
         {
-            if (!dualScreenResult->warpedTop.empty())
-            {
-                dualScreenResult->warpedTop = Vision::ImproveFrameColors(dualScreenResult->warpedTop);
-            }
-            if (!dualScreenResult->warpedBottom.empty())
-            {
-                dualScreenResult->warpedBottom = Vision::ImproveFrameColors(dualScreenResult->warpedBottom);
-            }
+            dualScreenResult->warpedTop = Vision::ImproveFrameColors(dualScreenResult->warpedTop);
+            preprocessor->ReextractRois(*dualScreenResult);
         }
-        for (auto &[name, roi] : dualScreenResult->topRois)
+        if (applyColorImprovementToDisplay && !dualScreenResult->warpedBottom.empty())
         {
-            roi = Vision::ImproveFrameColors(roi);
-        }
-        for (auto &[name, roi] : dualScreenResult->bottomRois)
-        {
-            roi = Vision::ImproveFrameColors(roi);
+            dualScreenResult->warpedBottom = Vision::ImproveFrameColors(dualScreenResult->warpedBottom);
         }
 
         if (!dualScreenResult->warpedTop.empty())

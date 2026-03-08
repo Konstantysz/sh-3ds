@@ -20,9 +20,8 @@ namespace SH3DS::FSM
         /**
          * @brief Creates the XY Starter Soft Reset FSM.
          *
-         * States: load_game -> game_start -> cutscene_start -> cutscene ->
-         *         starter_pick -> nickname_prompt -> post_selection ->
-         *         cutscene_end -> party_menu -> pokemon_summary -> soft_reset -> (loop)
+         * States: load_game -> game_start -> cutscene_part_1 -> starter_pick ->
+         *         cutscene_part_2 -> game_menu -> party_menu -> pokemon_summary -> (loop)
          *
          * @param params Detection parameters loaded from YAML.
          * @return Configured FSM instance.

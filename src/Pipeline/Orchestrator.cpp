@@ -141,13 +141,13 @@ namespace SH3DS::Pipeline
             return;
         }
 
-        for (auto &[name, roi] : dualScreenResult->topRois)
+        // Apply color correction to the full warped top image before ROI extraction so that
+        // Gray World WB has the complete scene to compute balanced gains. Bottom screen is
+        // LCD-rendered UI — WB correction is not applied.
+        if (!dualScreenResult->warpedTop.empty()) [[likely]]
         {
-            roi = Vision::ImproveFrameColors(roi);
-        }
-        for (auto &[name, roi] : dualScreenResult->bottomRois)
-        {
-            roi = Vision::ImproveFrameColors(roi);
+            dualScreenResult->warpedTop = Vision::ImproveFrameColors(dualScreenResult->warpedTop);
+            preprocessor->ReextractRois(*dualScreenResult);
         }
 
         LOG_DEBUG("Orchestrator: Updating FSM...");

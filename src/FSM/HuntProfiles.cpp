@@ -56,23 +56,16 @@ namespace SH3DS::FSM
 
         builder.AddState({
             .id = "cutscene_part_2",
-            .transitionsTo = { "nickname_prompt" },
+            .transitionsTo = { "game_menu" },
             .maxDurationS = 120,
             .detectionParameters = RequireState(params, "cutscene_part_2"),
         });
 
         builder.AddState({
-            .id = "nickname_prompt",
-            .transitionsTo = { "cutscene_part_3" },
-            .maxDurationS = 10,
-            .detectionParameters = RequireState(params, "nickname_prompt"),
-        });
-
-        builder.AddState({
-            .id = "cutscene_part_3",
+            .id = "game_menu",
             .transitionsTo = { "party_menu" },
-            .maxDurationS = 120,
-            .detectionParameters = RequireState(params, "cutscene_part_3"),
+            .maxDurationS = 60,
+            .detectionParameters = RequireState(params, "game_menu"),
         });
 
         builder.AddState({
@@ -84,17 +77,10 @@ namespace SH3DS::FSM
 
         builder.AddState({
             .id = "pokemon_summary",
-            .transitionsTo = { "soft_reset" },
+            .transitionsTo = { "load_game" },
             .maxDurationS = 20,
             .shinyCheck = true,
             .detectionParameters = RequireState(params, "pokemon_summary"),
-        });
-
-        builder.AddState({
-            .id = "soft_reset",
-            .transitionsTo = { "load_game" },
-            .maxDurationS = 15,
-            .detectionParameters = RequireState(params, "soft_reset"),
         });
 
         return builder.Build();

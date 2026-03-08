@@ -73,6 +73,8 @@ namespace SH3DS::FSM
     std::optional<Core::StateTransition> CXXStateTreeFSM::Update(const Core::ROISet &topRois,
         const SH3DS::Core::ROISet &bottomRois)
     {
+        LOG_DEBUG("Called `CXXStateTreeFSM::Update()` on new frame. Current state = {}.", currentState);
+
         const auto bestCandidateState = DetectBestCandidateState(topRois, bottomRois);
         if (bestCandidateState.state.empty() || bestCandidateState.confidence < 0.01)
         {
@@ -142,6 +144,7 @@ namespace SH3DS::FSM
         currentState = pendingState;
         stateEnteredAt = transition.timestamp;
         pendingFrameCount = 0;
+        raisesAtLastTransition_ = topIntensityDetector_.GetEvents().size();
 
         RecordTransition(transition);
 
@@ -168,6 +171,9 @@ namespace SH3DS::FSM
         pendingState.clear();
         pendingFrameCount = 0;
         transitionHistory.clear();
+        topIntensityDetector_.Reset();
+        raisesAtLastTransition_ = 0;
+        intensityFrameCounter_ = 0;
     }
 
     bool CXXStateTreeFSM::IsStuck() const
@@ -266,6 +272,26 @@ namespace SH3DS::FSM
                 else if (method == "color_histogram" || method == "pixel_ratio")
                 {
                     confidence = EvaluateColorHistogram(roiMat, params);
+                }
+                else if (method == "intensity_event")
+                {
+                    // intensity_event is an edge trigger: skip for the current state (we're already here).
+                    // Only evaluate for successor candidates so the Drop+Raise fires a transition INTO the state.
+                    if (stateConfig.id == currentState)
+                    {
+                        return std::nullopt;
+                    }
+                    confidence = EvaluateIntensityEvent(roiMat);
+                }
+                else if (method == "always_true")
+                {
+                    // always_true is a placeholder for unimplemented detection; also skip for current state
+                    // so it doesn't compete with real detectors on successor states.
+                    if (stateConfig.id == currentState)
+                    {
+                        return std::nullopt;
+                    }
+                    confidence = 1.0;
                 }
                 else
                 {
@@ -392,6 +418,55 @@ namespace SH3DS::FSM
         const double distance = std::abs(pixelRatio - midpoint);
 
         return halfRange > 0.0 ? 1.0 - 0.5 * (distance / halfRange) : 1.0;
+    }
+
+    double CXXStateTreeFSM::ComputeAverageV(const cv::Mat &roi) const
+    {
+        if (roi.empty())
+        {
+            return 0.0;
+        }
+
+        cv::Mat hsv;
+        cv::cvtColor(roi, hsv, cv::COLOR_BGR2HSV);
+        cv::Scalar meanVal = cv::mean(hsv);
+        return meanVal[2] / 255.0;
+    }
+
+    double CXXStateTreeFSM::EvaluateIntensityEvent(const cv::Mat &roi) const
+    {
+        const double avgV = ComputeAverageV(roi);
+        LOG_DEBUG("Average intensity of V = {}", avgV);
+        topIntensityDetector_.Update(avgV, intensityFrameCounter_++);
+
+        const auto &events = topIntensityDetector_.GetEvents();
+        const std::size_t eventCount = events.size();
+        if (eventCount <= raisesAtLastTransition_)
+        {
+            return 0.0;
+        }
+
+        // Scan backward from newest event: find a Raise, then a Drop before it
+        bool foundRaise = false;
+        for (std::size_t i = eventCount; i > raisesAtLastTransition_; --i)
+        {
+            const auto &ev = events[i - 1];
+            if (!foundRaise)
+            {
+                if (ev.type == Vision::IntensityEventType::Raise)
+                {
+                    foundRaise = true;
+                }
+            }
+            else
+            {
+                if (ev.type == Vision::IntensityEventType::Drop)
+                {
+                    return 1.0;
+                }
+            }
+        }
+        return 0.0;
     }
 
     void CXXStateTreeFSM::RecordTransition(const Core::StateTransition &transition)

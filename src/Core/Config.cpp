@@ -81,7 +81,8 @@ namespace SH3DS::Core
         void ValidateRoiDetectionParams(const RoiDetectionParams &params, const std::string &path)
         {
             const std::string method = ToLower(params.method);
-            if (method != "color_histogram" && method != "pixel_ratio" && method != "template_match")
+            if (method != "color_histogram" && method != "pixel_ratio" && method != "template_match"
+                && method != "intensity_event" && method != "always_true")
             {
                 throw std::runtime_error(path + ": unknown method '" + params.method + "'");
             }
@@ -104,7 +105,7 @@ namespace SH3DS::Core
                     throw std::runtime_error(path + ": template_match requires non-empty 'template_path'");
                 }
             }
-            else
+            else if (method != "intensity_event" && method != "always_true")
             {
                 if (params.pixelRatioMin < 0.0 || params.pixelRatioMin > 1.0 || params.pixelRatioMax < 0.0
                     || params.pixelRatioMax > 1.0)
@@ -462,6 +463,12 @@ namespace SH3DS::Core
                         action.waitAfterMs = actionNode["wait_after_ms"].as<int>(200);
                         action.repeat = actionNode["repeat"].as<bool>(false);
                         action.waitMs = actionNode["wait_ms"].as<int>(0);
+                        if (actionNode["touch_x"] || actionNode["touch_y"])
+                        {
+                            action.touch = true;
+                            action.touchX = actionNode["touch_x"].as<float>(0.0f);
+                            action.touchY = actionNode["touch_y"].as<float>(0.0f);
+                        }
                         stateActions.push_back(action);
                     }
 
@@ -592,6 +599,12 @@ namespace SH3DS::Core
                     action.waitAfterMs = actionNode["wait_after_ms"].as<int>(200);
                     action.repeat = actionNode["repeat"].as<bool>(false);
                     action.waitMs = actionNode["wait_ms"].as<int>(0);
+                    if (actionNode["touch_x"] || actionNode["touch_y"])
+                    {
+                        action.touch = true;
+                        action.touchX = actionNode["touch_x"].as<float>(0.0f);
+                        action.touchY = actionNode["touch_y"].as<float>(0.0f);
+                    }
                     stateActions.push_back(action);
                 }
 

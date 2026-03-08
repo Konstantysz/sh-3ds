@@ -25,105 +25,86 @@ rois:
     y: 0.30
     w: 0.60
     h: 0.28
-  - name: "dialogue"
-    x: 0.1
-    y: 0.75
-    w: 0.8
-    h: 0.2
   - name: "pokemon_sprite"
     x: 0.3
     y: 0.3
     w: 0.4
     h: 0.4
+  - name: "bottom_arrow_bar"
+    x: 0.0
+    y: 0.9
+    w: 1.0
+    h: 0.1
+  - name: "top_menu_bar"
+    x: 0.0
+    y: 0.9
+    w: 1.0
+    h: 0.1
 
-# FSM state detection parameters (HSV ranges tuned per state)
-debounce_frames: 3
+# FSM state detection parameters
+# intensity_event: fires on a completed Drop+Raise brightness cycle (black-screen flash)
+# always_true: placeholder until R&D provides pattern recognition for this screen
+debounce_frames: 1
 fsm_states:
   load_game:
     top:
-      roi: "top_strip"
-      method: "color_histogram"
-      hsv_lower: [60, 60, 190]
-      hsv_upper: [90, 100, 255]
-      threshold: 0.6
+      roi: "top_full"
+      method: "intensity_event"
+      threshold: 0.5
 
   game_start:
     top:
-      roi: "top_strip"
-      method: "color_histogram"
-      hsv_lower: [75, 0, 210]
-      hsv_upper: [110, 45, 255]
-      threshold: 0.6
+      roi: "top_full"
+      method: "intensity_event"
+      threshold: 0.5
 
   cutscene_part_1:
     top:
       roi: "top_full"
-      method: "color_histogram"
-      hsv_lower: [0, 0, 41]
-      hsv_upper: [180, 255, 255]
+      method: "intensity_event"
       threshold: 0.5
 
   starter_pick:
     top:
-      roi: "starters_area"
-      method: "color_histogram"
-      hsv_lower: [100, 80, 180]
-      hsv_upper: [118, 115, 225]
-      threshold: 0.5
-    bottom:
-      roi: "bottom_prompt"
-      method: "color_histogram"
-      hsv_lower: [95, 40, 165]
-      hsv_upper: [130, 150, 240]
+      roi: "top_full"
+      method: "intensity_event"
       threshold: 0.5
 
   cutscene_part_2:
     top:
       roi: "top_full"
-      method: "color_histogram"
-      hsv_lower: [0, 0, 41]
-      hsv_upper: [180, 255, 255]
+      method: "intensity_event"
       threshold: 0.5
 
-  nickname_prompt:
+  game_menu:
     top:
-      roi: "top_strip"
+      roi: "top_menu_bar"
       method: "color_histogram"
-      hsv_lower: [100, 75, 165]
-      hsv_upper: [120, 105, 200]
+      hsv_lower: [100, 120, 80]
+      hsv_upper: [130, 255, 255]
+      pixel_ratio_min: 0.7
+      pixel_ratio_max: 1.0
       threshold: 0.5
 
-  cutscene_part_3:
+  party_menu:  # TODO: replace always_true with R&D pattern recognition
     top:
       roi: "top_full"
-      method: "color_histogram"
-      hsv_lower: [0, 0, 41]
-      hsv_upper: [180, 255, 255]
+      method: "intensity_event"
+      threshold: 0.5
+    bottom:
+      roi: "top_full"
+      method: "always_true"
       threshold: 0.5
 
-  party_menu:
-    top:
-      roi: "top_strip"
-      method: "color_histogram"
-      hsv_lower: [96, 130, 180]
-      hsv_upper: [112, 165, 225]
-      threshold: 0.6
-
-  pokemon_summary:
-    top:
-      roi: "pokemon_sprite"
-      method: "color_histogram"
-      hsv_lower: [100, 70, 165]
-      hsv_upper: [120, 105, 215]
-      threshold: 0.3
-
-  soft_reset:
+  pokemon_summary:  # TODO: replace always_true with R&D pattern recognition
     top:
       roi: "top_full"
-      method: "color_histogram"
-      hsv_lower: [0, 0, 0]
-      hsv_upper: [180, 255, 40]
-      threshold: 0.95
+      method: "intensity_event"
+      threshold: 0.5
+    bottom:
+      roi: "top_full"
+      method: "always_true"
+      threshold: 0.5
 
 # Shiny detector (dominant color method)
 # Based on projected hardware shift (Gamma 1.3, WB)
@@ -151,33 +132,41 @@ actions:
       hold_ms: 100
       wait_after_ms: 500
 
-  game_start: []
+  game_start:
+    - buttons: ["D_LEFT"]
+      hold_ms: 100
+      wait_after_ms: 500
 
   cutscene_part_1:
     - buttons: ["A"]
       hold_ms: 100
-      wait_after_ms: 500
+      wait_after_ms: 100
+      repeat: true
 
   starter_pick:
-    - buttons: ["D_RIGHT"]
-      hold_ms: 100
-      wait_after_ms: 500
     - buttons: ["A"]
       hold_ms: 100
-      wait_after_ms: 500
+      wait_after_ms: 1000
+    - buttons: ["A"]
+      hold_ms: 100
+      wait_after_ms: 1000
+    - buttons: ["A"]
+      hold_ms: 100
+      wait_after_ms: 1000
 
   cutscene_part_2:
-    - buttons: ["A"]
-      hold_ms: 100
-      wait_after_ms: 500
-
-  nickname_prompt:
     - buttons: ["B"]
       hold_ms: 100
-      wait_after_ms: 500
+      wait_after_ms: 100
+      repeat: true
+    - buttons: ["X"]
+      hold_ms: 100
+      wait_after_ms: 100
+      repeat: true
 
-  cutscene_part_3:
-    - buttons: ["A"]
+  game_menu:  # Tap Pokemon entry in the X menu (bottom screen, top-left area)
+    - touch_x: 0.25
+      touch_y: 0.2
       hold_ms: 100
       wait_after_ms: 500
 
@@ -189,9 +178,7 @@ actions:
       hold_ms: 100
       wait_after_ms: 1000
 
-  pokemon_summary: []
-
-  soft_reset:
+  pokemon_summary:
     - buttons: ["L", "R", "START"]
       hold_ms: 500
       wait_after_ms: 2000

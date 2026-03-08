@@ -3,11 +3,13 @@
 #include "Core/Config.h"
 #include "Core/Types.h"
 #include "FSM/GameStateFSM.h"
+#include "Vision/IntensityEventDetector.h"
 #include "Vision/TemplateMatcher.h"
 
 #include <opencv2/core.hpp>
 
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -150,6 +152,12 @@ namespace SH3DS::FSM
          */
         double EvaluateColorHistogram(const cv::Mat &roi, const Core::RoiDetectionParams &roiDetectionParameters) const;
 
+        /** @brief Returns 1.0 if a new Drop+Raise pair has completed since last transition, else 0.0. */
+        double EvaluateIntensityEvent(const cv::Mat &roi) const;
+
+        /** @brief Computes the average normalised V-channel value [0,1] from a BGR ROI. */
+        double ComputeAverageV(const cv::Mat &roi) const;
+
         /**
          * @brief Records a state transition.
          * @param transition The state transition to record.
@@ -175,5 +183,9 @@ namespace SH3DS::FSM
         int pendingFrameCount = 0;                            ///< Debounce frame counter
         std::vector<Core::StateTransition> transitionHistory; ///< Transition history
         mutable Vision::TemplateMatcher templateMatcher;      ///< Template matcher for detection
+
+        mutable Vision::IntensityEventDetector topIntensityDetector_; ///< Tracks top-screen brightness for intensity_event method
+        mutable std::size_t raisesAtLastTransition_ = 0;              ///< events_.size() baseline at last state transition
+        mutable uint64_t intensityFrameCounter_ = 0;                  ///< Frame counter fed to IntensityEventDetector
     };
 } // namespace SH3DS::FSM

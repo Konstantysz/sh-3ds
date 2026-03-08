@@ -4,7 +4,7 @@ namespace SH3DS::Vision
 {
 
 IntensityEventDetector::IntensityEventDetector(IntensityEventConfig config)
-    : config_(config), vMax_(1.0), isBlack_(false)
+    : config_(config), vMax_(0.0), isBlack_(false)
 {
 }
 
@@ -52,7 +52,7 @@ bool IntensityEventDetector::IsBlack() const
 
 void IntensityEventDetector::Reset()
 {
-    vMax_    = 1.0;
+    vMax_    = 0.0;
     isBlack_ = false;
     events_.clear();
 }

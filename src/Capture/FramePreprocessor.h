@@ -60,6 +60,16 @@ namespace SH3DS::Capture
         std::optional<DualScreenResult> ProcessDualScreen(const cv::Mat &cameraFrame) const;
 
         /**
+         * @brief Re-extracts ROIs from already-warped screen images and updates the result in-place.
+         *
+         * Use this after applying post-processing (e.g. color correction) to warpedTop or warpedBottom:
+         * call ImproveFrameColors on the warped images first, then call this to refresh topRois/bottomRois.
+         *
+         * @param result DualScreenResult whose warpedTop/warpedBottom have been modified in-place.
+         */
+        void ReextractRois(DualScreenResult &result) const;
+
+        /**
          * @brief Sets the fixed corners for the top screen.
          * @param corners The fixed corners.
          */

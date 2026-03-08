@@ -108,6 +108,18 @@ namespace SH3DS::Capture
         return result;
     }
 
+    void FramePreprocessor::ReextractRois(DualScreenResult &result) const
+    {
+        if (!result.warpedTop.empty())
+        {
+            result.topRois = ExtractRois(result.warpedTop, calibration);
+        }
+        if (!result.warpedBottom.empty() && bottomCalibration)
+        {
+            result.bottomRois = ExtractRois(result.warpedBottom, *bottomCalibration);
+        }
+    }
+
     Core::ROISet FramePreprocessor::ExtractRois(const cv::Mat &warpedImage,
         const Core::ScreenCalibrationConfig &calib) const
     {
