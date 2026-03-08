@@ -23,7 +23,7 @@ namespace
         int imageSize = rowSize * height;
         int fileSize = 54 + imageSize;
 
-        std::vector<uint8_t> bmp(fileSize, 0);
+        std::vector<uint8_t> bmp(static_cast<size_t>(fileSize), 0);
 
         // BMP header
         bmp[0] = 'B';

@@ -1,6 +1,7 @@
 #include "Orchestrator.h"
 
 #include "Kappa/Logger.h"
+#include "Vision/ColorImprovement.h"
 
 #include <chrono>
 #include <thread>
@@ -30,12 +31,12 @@ namespace SH3DS::Pipeline
     {
         if (config.targetFps <= 0.0)
         {
-            LOG_ERROR("Orchestrator: Invalid target FPS ({:.1f}). Clamping to 30.0", config.targetFps);
+            LOG_WARN("Orchestrator: Invalid target FPS ({:.1f}). Clamping to 30.0", config.targetFps);
             config.targetFps = 30.0;
         }
 
         running = true;
-        auto tickInterval = std::chrono::microseconds(static_cast<int64_t>(1'000'000.0 / config.targetFps));
+        const auto tickInterval = std::chrono::microseconds(static_cast<int64_t>(1'000'000.0 / config.targetFps));
 
         LOG_INFO("Orchestrator starting at {:.1f} FPS (dry_run={})", config.targetFps, config.dryRun);
 
@@ -48,6 +49,7 @@ namespace SH3DS::Pipeline
         if (input && !input->IsConnected())
         {
             LOG_INFO("Orchestrator: Connecting to input adapter...");
+
             // Use a default address if not connected, though it should ideally be handled earlier
             if (!input->Connect("127.0.0.1"))
             {
@@ -59,12 +61,12 @@ namespace SH3DS::Pipeline
         {
             while (running)
             {
-                auto tickStart = std::chrono::steady_clock::now();
+                const auto tickStart = std::chrono::steady_clock::now();
 
                 MainLoopTick();
 
-                auto tickEnd = std::chrono::steady_clock::now();
-                auto elapsed = tickEnd - tickStart;
+                const auto tickEnd = std::chrono::steady_clock::now();
+                const auto elapsed = tickEnd - tickStart;
                 if (elapsed < tickInterval)
                 {
                     std::this_thread::sleep_for(tickInterval - elapsed);
@@ -95,9 +97,11 @@ namespace SH3DS::Pipeline
             }
         }
 
-        LOG_INFO("Orchestrator stopped. Final stats: {} encounters, {} shinies",
-            strategy->Stats().encounters,
-            strategy->Stats().shiniesFound);
+        const auto finalStats = Stats();
+        LOG_INFO("Orchestrator stopped. Final stats: {} encounters, {} shinies, {} watchdog stuck events",
+            finalStats.encounters,
+            finalStats.shiniesFound,
+            finalStats.watchdogRecoveries);
     }
 
     void Orchestrator::Stop()
@@ -107,12 +111,15 @@ namespace SH3DS::Pipeline
 
     Core::HuntStatistics Orchestrator::Stats() const
     {
-        return strategy->Stats();
+        auto stats = strategy->Stats();
+        stats.watchdogRecoveries += watchdogStuckCount;
+        return stats;
     }
 
     void Orchestrator::MainLoopTick()
     {
         LOG_DEBUG("Orchestrator: Grabbing frame...");
+
         auto frame = frameSource->Grab();
         if (!frame.has_value())
         {
@@ -120,22 +127,32 @@ namespace SH3DS::Pipeline
             return;
         }
 
-        // Auto-detect screen corners and update preprocessor
         if (screenDetector)
         {
             screenDetector->ApplyTo(*preprocessor, frame->image);
         }
 
         LOG_DEBUG("Orchestrator: Processing frame #{}...", frame->metadata.sequenceNumber);
-        auto rois = preprocessor->Process(frame->image);
-        if (!rois.has_value())
+
+        auto dualScreenResult = preprocessor->ProcessDualScreen(frame->image);
+        if (!dualScreenResult.has_value())
         {
             LOG_DEBUG("Orchestrator: Screen not detected in frame #{}", frame->metadata.sequenceNumber);
             return;
         }
 
+        // Apply color correction to the full warped top image before ROI extraction so that
+        // Gray World WB has the complete scene to compute balanced gains. Bottom screen is
+        // LCD-rendered UI — WB correction is not applied.
+        if (!dualScreenResult->warpedTop.empty()) [[likely]]
+        {
+            dualScreenResult->warpedTop = Vision::ImproveFrameColors(dualScreenResult->warpedTop);
+            preprocessor->ReextractRois(*dualScreenResult);
+        }
+
         LOG_DEBUG("Orchestrator: Updating FSM...");
-        auto transition = fsm->Update(*rois);
+
+        auto transition = fsm->Update(dualScreenResult->topRois, dualScreenResult->bottomRois);
         if (transition.has_value())
         {
             LOG_INFO(
@@ -143,20 +160,27 @@ namespace SH3DS::Pipeline
         }
 
         LOG_DEBUG("Orchestrator: Detecting shiny...");
+
         std::optional<Core::ShinyResult> shinyResult;
-        auto spriteIt = rois->find("pokemon_sprite");
-        if (spriteIt != rois->end() && !spriteIt->second.empty())
+        if (detector)
         {
-            shinyResult = detector->Detect(spriteIt->second);
+            auto spriteIt = dualScreenResult->topRois.find(config.shinyRoi);
+            if (spriteIt != dualScreenResult->topRois.end() && !spriteIt->second.empty())
+            {
+                shinyResult = detector->Detect(spriteIt->second);
+            }
         }
 
-        LOG_DEBUG("Orchestrator: Strategy tick (current state: {})...", fsm->CurrentState());
-        auto strategyDecision = strategy->Tick(fsm->CurrentState(), fsm->TimeInCurrentState(), shinyResult);
+        LOG_DEBUG("Orchestrator: Strategy tick (current state: {})...", fsm->GetCurrentState());
+
+        const auto strategyDecision = strategy->Tick(fsm->GetCurrentState(), fsm->GetTimeInCurrentState(), shinyResult);
 
         LOG_DEBUG("Orchestrator: Executing decision...");
+
         ExecuteDecision(strategyDecision);
 
         LOG_DEBUG("Orchestrator: Watchdog handling...");
+
         HandleWatchdog();
 
         LOG_DEBUG("Orchestrator: MainLoopTick complete.");
@@ -166,21 +190,12 @@ namespace SH3DS::Pipeline
     {
         if (fsm->IsStuck())
         {
-            LOG_WARN(
-                "Watchdog: FSM stuck in state '{}' for {}ms", fsm->CurrentState(), fsm->TimeInCurrentState().count());
-
-            auto recovery = strategy->OnStuck();
-            ExecuteDecision(recovery);
-
-            if (recovery.decision.action == Core::HuntAction::Abort)
-            {
-                Stop();
-            }
-            else
-            {
-                fsm->ForceState("unknown");
-                detector->Reset();
-            }
+            ++watchdogStuckCount;
+            LOG_WARN("Watchdog: FSM stuck in state '{}' for {}ms",
+                fsm->GetCurrentState(),
+                fsm->GetTimeInCurrentState().count());
+            LOG_ERROR("ABORT: watchdog detected stuck FSM state");
+            Stop();
         }
     }
 

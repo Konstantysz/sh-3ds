@@ -16,9 +16,10 @@ namespace SH3DS::Capture
      */
     struct DualScreenResult
     {
-        cv::Mat warpedTop;                   ///< Full warped top screen image
-        cv::Mat warpedBottom;                ///< Full warped bottom screen image (empty if no calibration)
-        std::optional<Core::ROISet> topRois; ///< Extracted ROIs from top screen
+        cv::Mat warpedTop;       ///< Full warped top screen image
+        cv::Mat warpedBottom;    ///< Full warped bottom screen image (empty if no calibration)
+        Core::ROISet topRois;    ///< Extracted ROIs from top screen
+        Core::ROISet bottomRois; ///< Extracted ROIs from bottom screen
     };
 
     /**
@@ -37,7 +38,7 @@ namespace SH3DS::Capture
         /**
          * @brief Constructs a new FramePreprocessor with optional bottom screen calibration.
          * @param calibration The top screen calibration configuration.
-         * @param roiDefs The ROI definitions (applied to top screen).
+         * @param roiDefs The ROI definitions (extracted from both top and bottom warped screens).
          * @param bottomCalibration The bottom screen calibration (optional).
          */
         FramePreprocessor(Core::ScreenCalibrationConfig calibration,
@@ -52,11 +53,26 @@ namespace SH3DS::Capture
         std::optional<Core::ROISet> Process(const cv::Mat &cameraFrame) const;
 
         /**
-         * @brief Processes both top and bottom screens from a single camera frame.
+         * @brief Warps both screens from a single camera frame and extracts bottom ROIs.
+         *
+         * @p topRois is intentionally left empty. Callers must apply any post-warp
+         * correction to @p warpedTop and then call ReextractRois() to populate @p topRois.
+         * @p bottomRois are extracted immediately since they do not require color correction.
+         *
          * @param cameraFrame The raw camera frame.
          * @return Dual screen result if successful, nullopt otherwise.
          */
         std::optional<DualScreenResult> ProcessDualScreen(const cv::Mat &cameraFrame) const;
+
+        /**
+         * @brief Extracts top-screen ROIs from the (possibly corrected) warpedTop image.
+         *
+         * Call this after applying color correction to @p result.warpedTop.
+         * Only @p topRois is updated; @p bottomRois is left unchanged.
+         *
+         * @param result DualScreenResult whose warpedTop has been corrected.
+         */
+        void ReextractRois(DualScreenResult &result) const;
 
         /**
          * @brief Sets the fixed corners for the top screen.

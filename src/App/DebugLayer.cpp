@@ -2,6 +2,7 @@
 
 #include "Kappa/Logger.h"
 #include "TextureUploader.h"
+#include "Vision/ColorImprovement.h"
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -17,6 +18,8 @@ namespace SH3DS::App
         std::unique_ptr<Capture::FramePreprocessor> preprocessor,
         std::unique_ptr<FSM::GameStateFSM> fsm,
         std::unique_ptr<Vision::ShinyDetector> detector,
+        std::string shinyRoi,
+        std::string shinyCheckState,
         size_t totalFrames,
         float targetFps)
         : source(std::move(source)),
@@ -25,6 +28,8 @@ namespace SH3DS::App
           preprocessor(std::move(preprocessor)),
           fsm(std::move(fsm)),
           detector(std::move(detector)),
+          shinyRoi(std::move(shinyRoi)),
+          shinyCheckState(std::move(shinyCheckState)),
           playback(totalFrames, targetFps)
     {
         // Initialize ImGui
@@ -130,13 +135,13 @@ namespace SH3DS::App
     void DebugLayer::ProcessCurrentFrame()
     {
         size_t frameIndex = playback.GetCurrentFrameIndex();
-
         if (frameIndex == lastProcessedFrame)
         {
             return;
         }
 
         seeker->Seek(frameIndex);
+
         auto frame = source->Grab();
         if (!frame)
         {
@@ -147,52 +152,71 @@ namespace SH3DS::App
         rawWidth = currentRawFrame.cols;
         rawHeight = currentRawFrame.rows;
 
-        // Upload raw frame texture
         TextureUploader::Upload(currentRawFrame, rawFrameTexture);
 
-        // Auto-detect screen corners and update preprocessor
         if (screenDetector)
         {
             screenDetector->ApplyTo(*preprocessor, frame->image);
         }
 
-        // Process through preprocessor
-        auto dualResult = preprocessor->ProcessDualScreen(frame->image);
-        if (dualResult)
+        auto dualScreenResult = preprocessor->ProcessDualScreen(frame->image);
+        if (!dualScreenResult)
         {
-            if (!dualResult->warpedTop.empty())
+            lastProcessedFrame = frameIndex;
+            return;
+        }
+
+        // Apply color correction to the full warped top image before ROI extraction so that
+        // Gray World WB has the complete scene to compute balanced gains. Bottom screen is
+        // LCD-rendered UI — WB correction is not applied.
+        if (!dualScreenResult->warpedTop.empty())
+        {
+            dualScreenResult->warpedTop = Vision::ImproveFrameColors(dualScreenResult->warpedTop);
+            preprocessor->ReextractRois(*dualScreenResult);
+        }
+        if (applyColorImprovementToDisplay && !dualScreenResult->warpedBottom.empty())
+        {
+            dualScreenResult->warpedBottom = Vision::ImproveFrameColors(dualScreenResult->warpedBottom);
+        }
+
+        if (!dualScreenResult->warpedTop.empty())
+        {
+            currentTopScreen = dualScreenResult->warpedTop;
+            topWidth = currentTopScreen.cols;
+            topHeight = currentTopScreen.rows;
+            TextureUploader::Upload(currentTopScreen, topScreenTexture);
+        }
+
+        if (!dualScreenResult->warpedBottom.empty())
+        {
+            currentBottomScreen = dualScreenResult->warpedBottom;
+            bottomWidth = currentBottomScreen.cols;
+            bottomHeight = currentBottomScreen.rows;
+            TextureUploader::Upload(currentBottomScreen, bottomScreenTexture);
+        }
+
+        if (!dualScreenResult->topRois.empty() || !dualScreenResult->bottomRois.empty())
+        {
+            fsm->Update(dualScreenResult->topRois, dualScreenResult->bottomRois);
+
+            const std::string newState = fsm->GetCurrentState();
+            if (newState != currentStateName)
             {
-                currentTopScreen = dualResult->warpedTop;
-                topWidth = currentTopScreen.cols;
-                topHeight = currentTopScreen.rows;
-                TextureUploader::Upload(currentTopScreen, topScreenTexture);
+                currentShinyResult = std::nullopt; // clear stale result on state change
+                currentStateName = newState;
             }
 
-            if (!dualResult->warpedBottom.empty())
-            {
-                currentBottomScreen = dualResult->warpedBottom;
-                bottomWidth = currentBottomScreen.cols;
-                bottomHeight = currentBottomScreen.rows;
-                TextureUploader::Upload(currentBottomScreen, bottomScreenTexture);
-            }
+            auto ms = fsm->GetTimeInCurrentState();
+            timeInState = static_cast<float>(ms.count()) / 1000.0f;
+        }
 
-            // Update FSM
-            if (dualResult->topRois)
+        if (detector && !dualScreenResult->topRois.empty() && !shinyRoi.empty()
+            && (shinyCheckState.empty() || currentStateName == shinyCheckState))
+        {
+            auto it = dualScreenResult->topRois.find(shinyRoi);
+            if (it != dualScreenResult->topRois.end() && !it->second.empty())
             {
-                fsm->Update(*dualResult->topRois);
-                currentStateName = fsm->CurrentState();
-                auto ms = fsm->TimeInCurrentState();
-                timeInState = static_cast<float>(ms.count()) / 1000.0f;
-            }
-
-            // Shiny detection
-            if (detector && dualResult->topRois)
-            {
-                auto it = dualResult->topRois->find("pokemon_sprite");
-                if (it != dualResult->topRois->end() && !it->second.empty())
-                {
-                    currentShinyResult = detector->Detect(it->second);
-                }
+                currentShinyResult = detector->Detect(it->second);
             }
         }
 
@@ -234,8 +258,15 @@ namespace SH3DS::App
 
         ImGui::Separator();
 
+        if (ImGui::Checkbox("Color Correction (display)", &applyColorImprovementToDisplay))
+        {
+            lastProcessedFrame = SIZE_MAX; // force re-process with new setting
+        }
+
+        ImGui::Separator();
+
         ImGui::Text("FSM State: %s", currentStateName.c_str());
-        ImGui::Text("Time in State: %.1f s", timeInState);
+        ImGui::Text("Time in State: %.1f s", static_cast<double>(timeInState));
 
         ImGui::Separator();
 
@@ -334,7 +365,7 @@ namespace SH3DS::App
             playback.SetPlaybackSpeed(speed);
         }
         ImGui::SameLine();
-        ImGui::Text("FPS: %.1f", playback.GetTargetFps() * speed);
+        ImGui::Text("FPS: %.1f", static_cast<double>(playback.GetTargetFps() * speed));
 
         ImGui::End();
     }

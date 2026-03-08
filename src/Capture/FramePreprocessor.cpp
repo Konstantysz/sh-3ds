@@ -15,11 +15,10 @@ namespace SH3DS::Capture
         return (c[0] == c[1] && c[1] == c[2] && c[2] == c[3]);
     }
 
-    static bool CornersEqual(const std::array<cv::Point2f, 4> &a,
-        const std::array<cv::Point2f, 4> &b,
-        float epsilon = 0.01f)
+    static bool
+        CornersEqual(const std::array<cv::Point2f, 4> &a, const std::array<cv::Point2f, 4> &b, float epsilon = 0.01f)
     {
-        for (int i = 0; i < 4; ++i)
+        for (size_t i = 0; i < 4; ++i)
         {
             if (std::abs(a[i].x - b[i].x) > epsilon || std::abs(a[i].y - b[i].y) > epsilon)
             {
@@ -89,23 +88,32 @@ namespace SH3DS::Capture
         DualScreenResult result;
 
         // warpedTop/warpedBottom are independent allocations from warpPerspective.
-        // ROIs are cloned in ExtractRois because sub-regions share memory with the source Mat.
+        // topRois are intentionally left empty here — callers must apply any post-warp
+        // correction (e.g. color improvement) to warpedTop and then call ReextractRois()
+        // to populate topRois from the corrected image.
         cv::warpPerspective(
             cameraFrame, result.warpedTop, warpMatrix, cv::Size(calibration.targetWidth, calibration.targetHeight));
 
-        // Extract ROIs from top screen
-        result.topRois = ExtractRois(result.warpedTop, calibration);
-
-        // Warp bottom screen if calibrated
+        // Warp bottom screen if calibrated and extract its ROIs immediately.
+        // Bottom ROIs are used for detection without color correction.
         if (bottomCalibration && !bottomWarpMatrix.empty())
         {
             cv::warpPerspective(cameraFrame,
                 result.warpedBottom,
                 bottomWarpMatrix,
                 cv::Size(bottomCalibration->targetWidth, bottomCalibration->targetHeight));
+            result.bottomRois = ExtractRois(result.warpedBottom, *bottomCalibration);
         }
 
         return result;
+    }
+
+    void FramePreprocessor::ReextractRois(DualScreenResult &result) const
+    {
+        if (!result.warpedTop.empty())
+        {
+            result.topRois = ExtractRois(result.warpedTop, calibration);
+        }
     }
 
     Core::ROISet FramePreprocessor::ExtractRois(const cv::Mat &warpedImage,

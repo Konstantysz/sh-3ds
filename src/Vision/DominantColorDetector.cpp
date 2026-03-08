@@ -48,7 +48,11 @@ namespace SH3DS::Vision
     {
         if (pokemonRoi.empty())
         {
-            return { .verdict = Core::ShinyVerdict::Uncertain, .confidence = 0.0, .method = "dominant_color" };
+            return { .verdict = Core::ShinyVerdict::Uncertain,
+                .confidence = 0.0,
+                .method = "dominant_color",
+                .details = {},
+                .debugImage = {} };
         }
 
         cv::Mat hsv;
@@ -71,6 +75,7 @@ namespace SH3DS::Vision
                 .confidence = std::min(shinyRatio / config.shinyRatioThreshold, 1.0),
                 .method = "dominant_color",
                 .details = details,
+                .debugImage = {},
             };
         }
 
@@ -81,6 +86,7 @@ namespace SH3DS::Vision
                 .confidence = std::min(normalRatio / config.normalRatioThreshold, 1.0),
                 .method = "dominant_color",
                 .details = details,
+                .debugImage = {},
             };
         }
 
@@ -89,6 +95,7 @@ namespace SH3DS::Vision
             .confidence = 0.0,
             .method = "dominant_color",
             .details = details,
+            .debugImage = {},
         };
     }
 
@@ -96,7 +103,11 @@ namespace SH3DS::Vision
     {
         if (rois.empty())
         {
-            return { .verdict = Core::ShinyVerdict::Uncertain, .confidence = 0.0, .method = "dominant_color" };
+            return { .verdict = Core::ShinyVerdict::Uncertain,
+                .confidence = 0.0,
+                .method = "dominant_color",
+                .details = {},
+                .debugImage = {} };
         }
 
         std::map<Core::ShinyVerdict, int> votes;
@@ -125,8 +136,8 @@ namespace SH3DS::Vision
         return { .verdict = winner,
             .confidence = totalConfidence[winner] / static_cast<double>(maxVotes),
             .method = "dominant_color",
-            .details =
-                "sequence_majority_vote: count=" + std::to_string(maxVotes) + "/" + std::to_string(rois.size()) };
+            .details = "sequence_majority_vote: count=" + std::to_string(maxVotes) + "/" + std::to_string(rois.size()),
+            .debugImage = {} };
     }
 
     std::string DominantColorDetector::ProfileId() const

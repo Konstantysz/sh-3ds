@@ -174,7 +174,7 @@ TEST(ScreenDetector, TemporalSmoothingReducesJitter)
     auto &prev = detectedCorners[detectedCorners.size() - 2];
 
     float maxDelta = 0.0f;
-    for (int j = 0; j < 4; ++j)
+    for (size_t j = 0; j < 4; ++j)
     {
         maxDelta = std::max(maxDelta, std::abs(last[j].x - prev[j].x));
         maxDelta = std::max(maxDelta, std::abs(last[j].y - prev[j].y));
@@ -288,11 +288,7 @@ TEST(ScreenDetector, DetectsTrapezoidal5To3Screen)
     auto frame = MakeBlackFrame();
     // Perspective-distorted trapezoid with ~5:3 aspect ratio
     // Top edge narrower than bottom (camera below screen)
-    DrawBrightRect(frame,
-        cv::Point(250, 120),
-        cv::Point(650, 120),
-        cv::Point(700, 400),
-        cv::Point(200, 400));
+    DrawBrightRect(frame, cv::Point(250, 120), cv::Point(650, 120), cv::Point(700, 400), cv::Point(200, 400));
 
     SH3DS::Capture::ScreenDetector detector;
     auto result = detector.DetectOnce(frame);

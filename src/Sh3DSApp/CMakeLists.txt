@@ -4,6 +4,17 @@ add_executable(sh3ds Sh3DSAppGUI.cpp)
 target_link_libraries(sh3ds PRIVATE SH3DS::Pipeline SH3DS::App CLI11::CLI11)
 
 sh3ds_set_warnings(sh3ds)
+sh3ds_configure_visual_studio_target(
+  sh3ds
+  "Applications"
+  BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+# Tell VS debugger to use the exe's output directory as working directory,
+# so relative paths like config/hardware.yaml resolve correctly.
+set_target_properties(sh3ds PROPERTIES
+    VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:sh3ds>"
+)
 
 # Sync config/ directory next to executable (clean first to remove stale files)
 add_custom_command(TARGET sh3ds POST_BUILD

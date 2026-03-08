@@ -1,25 +1,33 @@
 # Changelog
 
-## [Unreleased] - v0.1.0
+## [0.1.0] - 2026-03-09
 
 ### Added
+
 - Project skeleton: CMake + vcpkg, .clang-format, .clang-tidy, .pre-commit-config
-- Core types: Frame, FrameMetadata, ROISet, ShinyVerdict, GameState, InputCommand
-- Config system: YAML loading for hardware, game profiles, hunt strategies, detection profiles
-- Logging: spdlog with console + rotating file sinks
-- Abstract interfaces: FrameSource, ShinyDetector, GameStateFSM, HuntStrategy, InputAdapter
-- FileFrameSource: replay frames from directory of PNGs
-- FramePreprocessor: perspective warp + ROI extraction from calibrated corners
-- ConfigDrivenFSM: string-based states with template match and color histogram detection
-- DominantColorDetector: HSV color range shiny detection
-- HistogramDetector: reference histogram comparison shiny detection
-- MockInputAdapter: logs commands without sending
-- SoftResetStrategy: config-driven SR loop orchestration
-- Orchestrator: main loop with watchdog, dry-run mode, graceful shutdown
-- YAML configs: hardware, Pokemon X/Y game profile, starter SR hunt, Froakie detection
-- Unit tests: types, config loading, input encoding, FSM transitions, shiny detection, preprocessor
-- Integration test: replay pipeline (preprocess -> FSM -> detector)
+- Core types, config system (YAML), abstract pipeline interfaces, logging via Kappa
+- `FileFrameSource` / `VideoFrameSource` — replay from PNG dir or video file
+- `FramePreprocessor` — perspective warp, ROI extraction, dual-screen support
+- `ScreenDetector` — automatic 3DS screen detection via contour + aspect-ratio classification
+- `CXXStateTreeFSM` — state machine backed by CXXStateTree; detection methods: `color_histogram`, `dominant_color`, `template_match`, `intensity_event`, `always_true`
+- `IntensityEventDetector` — causal Drop+Raise brightness cycle detector
+- `ColorImprovement` — Gray World WB → CLAHE → gamma LUT
+- `DominantColorDetector`, `HistogramDetector` — shiny detection backends
+- `SoftResetStrategy`, `Orchestrator` — hunt loop with watchdog and dry-run mode
+- Unified hunt config: single YAML per hunt (`config/hunts/<id>.yaml`)
+- ImGui debug GUI (`SH3DSDebugApp`) with replay playback and dual-screen view
+- 159 tests passing (unit + integration), including XY Starter Fennekin full-replay test
 
-### Known Issues (Deferred)
+### Fixed
 
-- ASAN (`SH3DS_ENABLE_SANITIZERS`) disabled on Windows — MSVC ASAN runtime DLL not discoverable from Git Bash; re-enable once DLL copy logic is added to `cmake/Sanitizers.cmake`
+- `IntensityEventDetector` was advanced once per FSM candidate instead of once per frame
+- `CLAHE` and gamma LUT were recreated on every frame; now cached between calls
+- `ProcessDualScreen` extracted top ROIs that `ReextractRois` immediately overwrote
+
+### Removed
+
+- Console mode from the entry point (GUI-only; `Orchestrator` remains headless-capable)
+
+### Known issues (deferred)
+
+- ASAN disabled on Windows — MSVC ASAN runtime DLL not on PATH from Git Bash

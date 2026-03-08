@@ -66,22 +66,31 @@ namespace SH3DS::Capture
                 calibrated = true;
                 calibratedResult = result;
                 LOG_INFO("Screen detection calibrated ({:.0f}% success rate over {} frames)",
-                    successRate * 100.0, calibrationWindow.size());
+                    successRate * 100.0,
+                    calibrationWindow.size());
                 if (result.topScreen)
                 {
                     LOG_INFO("  Top screen corners: [{:.0f},{:.0f}] [{:.0f},{:.0f}] [{:.0f},{:.0f}] [{:.0f},{:.0f}]",
-                        result.topScreen->corners[0].x, result.topScreen->corners[0].y,
-                        result.topScreen->corners[1].x, result.topScreen->corners[1].y,
-                        result.topScreen->corners[2].x, result.topScreen->corners[2].y,
-                        result.topScreen->corners[3].x, result.topScreen->corners[3].y);
+                        result.topScreen->corners[0].x,
+                        result.topScreen->corners[0].y,
+                        result.topScreen->corners[1].x,
+                        result.topScreen->corners[1].y,
+                        result.topScreen->corners[2].x,
+                        result.topScreen->corners[2].y,
+                        result.topScreen->corners[3].x,
+                        result.topScreen->corners[3].y);
                 }
                 if (result.bottomScreen)
                 {
                     LOG_INFO("  Bottom screen corners: [{:.0f},{:.0f}] [{:.0f},{:.0f}] [{:.0f},{:.0f}] [{:.0f},{:.0f}]",
-                        result.bottomScreen->corners[0].x, result.bottomScreen->corners[0].y,
-                        result.bottomScreen->corners[1].x, result.bottomScreen->corners[1].y,
-                        result.bottomScreen->corners[2].x, result.bottomScreen->corners[2].y,
-                        result.bottomScreen->corners[3].x, result.bottomScreen->corners[3].y);
+                        result.bottomScreen->corners[0].x,
+                        result.bottomScreen->corners[0].y,
+                        result.bottomScreen->corners[1].x,
+                        result.bottomScreen->corners[1].y,
+                        result.bottomScreen->corners[2].x,
+                        result.bottomScreen->corners[2].y,
+                        result.bottomScreen->corners[3].x,
+                        result.bottomScreen->corners[3].y);
                 }
             }
         }
@@ -210,7 +219,8 @@ namespace SH3DS::Capture
         if (candidates.empty() && !cameraFrame.empty())
         {
             LOG_DEBUG("ScreenDetector: No candidates found in non-empty frame (Otsu={:.0f}, fallback={})",
-                otsuThreshold, config.brightnessThreshold);
+                otsuThreshold,
+                config.brightnessThreshold);
         }
 
         return candidates;
@@ -229,22 +239,18 @@ namespace SH3DS::Capture
         if (candidates.size() > 2)
         {
             LOG_WARN("ScreenDetector: {} candidates found, selecting top 2 by confidence", candidates.size());
-            std::sort(candidates.begin(), candidates.end(),
-                [](const DetectedScreen &a, const DetectedScreen &b)
-                {
-                    return a.confidence > b.confidence;
-                });
+            std::sort(candidates.begin(), candidates.end(), [](const DetectedScreen &a, const DetectedScreen &b) {
+                return a.confidence > b.confidence;
+            });
             candidates.resize(2);
         }
 
         // Sort remaining candidates by vertical center position (top of image first)
-        std::sort(candidates.begin(), candidates.end(),
-            [](const DetectedScreen &a, const DetectedScreen &b)
-            {
-                float aCenterY = (a.corners[0].y + a.corners[2].y) / 2.0f;
-                float bCenterY = (b.corners[0].y + b.corners[2].y) / 2.0f;
-                return aCenterY < bCenterY;
-            });
+        std::sort(candidates.begin(), candidates.end(), [](const DetectedScreen &a, const DetectedScreen &b) {
+            float aCenterY = (a.corners[0].y + a.corners[2].y) / 2.0f;
+            float bCenterY = (b.corners[0].y + b.corners[2].y) / 2.0f;
+            return aCenterY < bCenterY;
+        });
 
         if (candidates.size() >= 2)
         {
@@ -316,12 +322,12 @@ namespace SH3DS::Capture
             framesSinceDetection = 0;
             if (smoothed)
             {
-                for (int i = 0; i < 4; ++i)
+                const auto a = static_cast<float>(std::clamp(alpha, 0.0, 1.0));
+                const auto b = 1.0f - a;
+                for (size_t i = 0; i < 4; ++i)
                 {
-                    (*smoothed)[i].x = static_cast<float>(
-                        alpha * screen->corners[i].x + (1.0 - alpha) * (*smoothed)[i].x);
-                    (*smoothed)[i].y = static_cast<float>(
-                        alpha * screen->corners[i].y + (1.0 - alpha) * (*smoothed)[i].y);
+                    (*smoothed)[i].x = a * screen->corners[i].x + b * (*smoothed)[i].x;
+                    (*smoothed)[i].y = a * screen->corners[i].y + b * (*smoothed)[i].y;
                 }
             }
             else
@@ -385,10 +391,8 @@ namespace SH3DS::Capture
         // TR should be right of and above center
         // BR should be right of and below center
         // BL should be left of and below center
-        return corners[0].x < cx && corners[0].y < cy
-            && corners[1].x > cx && corners[1].y < cy
-            && corners[2].x > cx && corners[2].y > cy
-            && corners[3].x < cx && corners[3].y > cy;
+        return corners[0].x < cx && corners[0].y < cy && corners[1].x > cx && corners[1].y < cy && corners[2].x > cx
+               && corners[2].y > cy && corners[3].x < cx && corners[3].y > cy;
     }
 
     double ScreenDetector::ComputeAspectRatio(const std::array<cv::Point2f, 4> &corners)
@@ -410,20 +414,26 @@ namespace SH3DS::Capture
 
     double ScreenDetector::ComputeConfidence(const std::array<cv::Point2f, 4> &corners, double aspectRatio) const
     {
-        double topDiff = std::abs(aspectRatio - config.topAspectRatio);
-        double botDiff = std::abs(aspectRatio - config.bottomAspectRatio);
-        double bestDiff = std::min(topDiff, botDiff);
+        const double topDiff = std::abs(aspectRatio - config.topAspectRatio);
+        const double botDiff = std::abs(aspectRatio - config.bottomAspectRatio);
+        const double bestDiff = std::min(topDiff, botDiff);
 
         double confidence = 1.0 - (bestDiff / (config.aspectRatioTolerance * 2.0));
         confidence = std::clamp(confidence, 0.0, 1.0);
 
-        double topWidth = cv::norm(corners[1] - corners[0]);
-        double bottomWidth = cv::norm(corners[2] - corners[3]);
-        double leftHeight = cv::norm(corners[3] - corners[0]);
-        double rightHeight = cv::norm(corners[2] - corners[1]);
+        const double topWidth = cv::norm(corners[1] - corners[0]);
+        const double bottomWidth = cv::norm(corners[2] - corners[3]);
+        const double leftHeight = cv::norm(corners[3] - corners[0]);
+        const double rightHeight = cv::norm(corners[2] - corners[1]);
 
-        double widthRatio = std::min(topWidth, bottomWidth) / std::max(topWidth, bottomWidth);
-        double heightRatio = std::min(leftHeight, rightHeight) / std::max(leftHeight, rightHeight);
+        const double maxWidth = std::max(topWidth, bottomWidth);
+        const double maxHeight = std::max(leftHeight, rightHeight);
+        if (maxWidth < 1.0 || maxHeight < 1.0)
+        {
+            return 0.0;
+        }
+        const double widthRatio = std::min(topWidth, bottomWidth) / maxWidth;
+        const double heightRatio = std::min(leftHeight, rightHeight) / maxHeight;
 
         confidence *= (widthRatio + heightRatio) / 2.0;
 

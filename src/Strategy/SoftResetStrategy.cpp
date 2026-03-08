@@ -1,5 +1,6 @@
 #include "SoftResetStrategy.h"
 
+#include "Core/Constants.h"
 #include "Input/InputCommand.h"
 #include "Kappa/Logger.h"
 
@@ -21,10 +22,11 @@ namespace SH3DS::Strategy
             actionIndex = 0;
             waitingForShinyCheck = false;
             consecutiveStuckCount = 0;
+            shinyCheckResolvedInState = false;
         }
 
-        // Check shiny result in the shiny check state
-        if (currentState == config.shinyCheckState)
+        // Check shiny only in the configured state, once per state entry.
+        if (!config.shinyCheckState.empty() && currentState == config.shinyCheckState && !shinyCheckResolvedInState)
         {
             // Wait for the delay before checking
             if (timeInState < std::chrono::milliseconds(config.shinyCheckDelayMs))
@@ -57,19 +59,19 @@ namespace SH3DS::Strategy
 
                     LOG_INFO("Encounter #{}: not shiny (confidence={:.3f})", stats.encounters, shinyResult->confidence);
 
-                    // Continue to post-reveal / soft reset
-                    waitingForShinyCheck = false;
+                    shinyCheckResolvedInState = true;
                 }
-                // Uncertain — keep checking
                 else
                 {
-                    return { { .action = Core::HuntAction::CheckShiny, .reason = "uncertain verdict, re-checking" },
-                        {} };
+                    LOG_WARN("Strategy: shiny check is uncertain; treating as not shiny for this encounter");
+                    shinyCheckResolvedInState = true;
                 }
             }
             else
             {
-                return { { .action = Core::HuntAction::CheckShiny, .reason = "requesting shiny check" }, {} };
+                // Detector is expected to run continuously in orchestrator. If no result is available
+                // in this frame, wait until one appears; do not request repeated explicit checks.
+                return { { .action = Core::HuntAction::Wait, .reason = "awaiting shiny result" }, {} };
             }
         }
 
@@ -83,9 +85,9 @@ namespace SH3DS::Strategy
         const auto &stateActions = it->second;
 
         // Standalone wait action
-        if (actionIndex < static_cast<int>(stateActions.size()))
+        if (static_cast<size_t>(actionIndex) < stateActions.size())
         {
-            const auto &action = stateActions[actionIndex];
+            const auto &action = stateActions[static_cast<size_t>(actionIndex)];
 
             if (action.waitMs > 0 && action.buttons.empty())
             {
@@ -101,12 +103,12 @@ namespace SH3DS::Strategy
             }
         }
 
-        // Execute button actions
-        if (actionIndex < static_cast<int>(stateActions.size()))
+        // Execute button or touch actions
+        if (static_cast<size_t>(actionIndex) < stateActions.size())
         {
-            const auto &action = stateActions[actionIndex];
+            const auto &action = stateActions[static_cast<size_t>(actionIndex)];
 
-            if (!action.buttons.empty())
+            if (!action.buttons.empty() || action.touch)
             {
                 auto now = std::chrono::steady_clock::now();
                 auto timeSinceLastAction = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastActionTime);
@@ -116,6 +118,12 @@ namespace SH3DS::Strategy
                     lastActionTime = now;
 
                     Input::InputCommand cmd = BuildInputCommand(action.buttons);
+                    if (action.touch)
+                    {
+                        cmd.touch.touching = true;
+                        cmd.touch.x = static_cast<uint16_t>(action.touchX * Core::kBottomScreenWidth);
+                        cmd.touch.y = static_cast<uint16_t>(action.touchY * Core::kBottomScreenHeight);
+                    }
 
                     if (!action.repeat)
                     {
@@ -172,6 +180,7 @@ namespace SH3DS::Strategy
         lastActionTime = std::chrono::steady_clock::now();
         waitingForShinyCheck = false;
         consecutiveStuckCount = 0;
+        shinyCheckResolvedInState = false;
     }
 
     std::string SoftResetStrategy::Describe() const

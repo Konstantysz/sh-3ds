@@ -36,6 +36,8 @@ namespace SH3DS::App
          * @param preprocessor Frame preprocessor for perspective warp.
          * @param fsm Game state FSM.
          * @param detector Shiny detector (may be null).
+         * @param shinyRoi ROI name for shiny detection.
+         * @param shinyCheckState FSM state in which shiny detection runs.
          * @param totalFrames Total number of frames in the source.
          * @param targetFps Target playback FPS.
          */
@@ -46,12 +48,15 @@ namespace SH3DS::App
             std::unique_ptr<Capture::FramePreprocessor> preprocessor,
             std::unique_ptr<FSM::GameStateFSM> fsm,
             std::unique_ptr<Vision::ShinyDetector> detector,
+            std::string shinyRoi,
+            std::string shinyCheckState,
             size_t totalFrames,
             float targetFps);
 
         ~DebugLayer() override;
 
         void OnUpdate(float deltaTime) override;
+
         void OnRender() override;
 
     private:
@@ -86,6 +91,8 @@ namespace SH3DS::App
         std::unique_ptr<Capture::FramePreprocessor> preprocessor; ///< Perspective warp
         std::unique_ptr<FSM::GameStateFSM> fsm;                   ///< Game state FSM
         std::unique_ptr<Vision::ShinyDetector> detector;          ///< Shiny detector
+        std::string shinyRoi;                                     ///< ROI name for shiny detection
+        std::string shinyCheckState;                              ///< FSM state in which shiny detection runs
 
         // Playback
         PlaybackController playback; ///< Playback state controller
@@ -100,6 +107,9 @@ namespace SH3DS::App
         cv::Mat currentTopScreen;    ///< Current warped top screen
         cv::Mat currentBottomScreen; ///< Current warped bottom screen
 
+        // Display options
+        bool applyColorImprovementToDisplay = false; ///< Whether to apply color correction to displayed warped frames
+
         // State info
         std::string currentStateName = "unknown";            ///< Current FSM state
         float timeInState = 0.0f;                            ///< Time in current state (seconds)
@@ -107,10 +117,10 @@ namespace SH3DS::App
         size_t lastProcessedFrame = SIZE_MAX;                ///< Last processed frame index
 
         // Frame dimensions (for display)
-        int rawWidth = 0;       ///< Raw frame width
-        int rawHeight = 0;      ///< Raw frame height
-        int topWidth = Core::kTopScreenWidth;        ///< Top screen width
-        int topHeight = Core::kTopScreenHeight;      ///< Top screen height
+        int rawWidth = 0;                             ///< Raw frame width
+        int rawHeight = 0;                            ///< Raw frame height
+        int topWidth = Core::kTopScreenWidth;         ///< Top screen width
+        int topHeight = Core::kTopScreenHeight;       ///< Top screen height
         int bottomWidth = Core::kBottomScreenWidth;   ///< Bottom screen width
         int bottomHeight = Core::kBottomScreenHeight; ///< Bottom screen height
     };

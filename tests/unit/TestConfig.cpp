@@ -306,3 +306,198 @@ detection:
     EXPECT_DOUBLE_EQ(profile.fusion.shinyThreshold, 0.55);
     EXPECT_DOUBLE_EQ(profile.fusion.uncertainThreshold, 0.35);
 }
+
+TEST_F(ConfigTest, LoadUnifiedHuntConfig_ParsesScreenModeAndPerScreenDetectionBlocks)
+{
+    WriteFile(huntConfigYaml, R"(
+hunt_id: "xy_dual"
+hunt_name: "Dual Screen Test"
+target_pokemon: "fennekin"
+screen_mode: "dual"
+debounce_frames: 2
+fsm_states:
+  starter_pick:
+    top:
+      roi: "starters_area"
+      method: "color_histogram"
+      hsv_lower: [100, 80, 180]
+      hsv_upper: [118, 115, 225]
+      threshold: 0.55
+    bottom:
+      roi: "bottom_prompt"
+      method: "color_histogram"
+      hsv_lower: [95, 40, 165]
+      hsv_upper: [130, 150, 240]
+      threshold: 0.60
+)");
+
+    auto config = SH3DS::Core::LoadUnifiedHuntConfig(huntConfigYaml);
+    EXPECT_EQ(config.screenMode, SH3DS::Core::ScreenMode::Dual);
+    EXPECT_EQ(config.fsmParams.screenMode, SH3DS::Core::ScreenMode::Dual);
+
+    const auto &starter = config.fsmParams.stateParams.at("starter_pick");
+    ASSERT_TRUE(starter.top.has_value());
+    ASSERT_TRUE(starter.bottom.has_value());
+
+    EXPECT_EQ(starter.top->roi, "starters_area");
+    EXPECT_EQ(starter.top->method, "color_histogram");
+    EXPECT_DOUBLE_EQ(starter.top->threshold, 0.55);
+
+    EXPECT_EQ(starter.bottom->roi, "bottom_prompt");
+    EXPECT_EQ(starter.bottom->method, "color_histogram");
+    EXPECT_DOUBLE_EQ(starter.bottom->threshold, 0.60);
+}
+
+TEST_F(ConfigTest, LoadUnifiedHuntConfig_ThrowsWhenScreenModeIsMissing)
+{
+    WriteFile(huntConfigYaml, R"(
+hunt_id: "xy_dual"
+hunt_name: "Dual Screen Test"
+target_pokemon: "fennekin"
+fsm_states:
+  starter_pick:
+    top:
+      roi: "starters_area"
+      method: "color_histogram"
+      hsv_lower: [100, 80, 180]
+      hsv_upper: [118, 115, 225]
+)");
+
+    EXPECT_THROW(SH3DS::Core::LoadUnifiedHuntConfig(huntConfigYaml), std::runtime_error);
+}
+
+TEST_F(ConfigTest, LoadUnifiedHuntConfig_ThrowsOnLegacyStateLevelRoiSchema)
+{
+    WriteFile(huntConfigYaml, R"(
+hunt_id: "xy_dual"
+hunt_name: "Dual Screen Test"
+target_pokemon: "fennekin"
+screen_mode: "dual"
+fsm_states:
+  starter_pick:
+    method: "color_histogram"
+    roi: "starters_area"
+    hsv_lower: [100, 80, 180]
+    hsv_upper: [118, 115, 225]
+)");
+
+    EXPECT_THROW(SH3DS::Core::LoadUnifiedHuntConfig(huntConfigYaml), std::runtime_error);
+}
+
+TEST_F(ConfigTest, LoadUnifiedHuntConfig_ThrowsWhenSingleModeStateDefinesTopAndBottom)
+{
+    WriteFile(huntConfigYaml, R"(
+hunt_id: "xy_single"
+hunt_name: "Single Screen Test"
+target_pokemon: "fennekin"
+screen_mode: "single"
+fsm_states:
+  starter_pick:
+    top:
+      roi: "starters_area"
+      method: "color_histogram"
+      hsv_lower: [100, 80, 180]
+      hsv_upper: [118, 115, 225]
+    bottom:
+      roi: "bottom_prompt"
+      method: "color_histogram"
+      hsv_lower: [95, 40, 165]
+      hsv_upper: [130, 150, 240]
+)");
+
+    EXPECT_THROW(SH3DS::Core::LoadUnifiedHuntConfig(huntConfigYaml), std::runtime_error);
+}
+
+TEST_F(ConfigTest, LoadUnifiedHuntConfig_ThrowsWhenStateHasNoTopOrBottom)
+{
+    WriteFile(huntConfigYaml, R"(
+hunt_id: "xy_dual"
+hunt_name: "Dual Screen Test"
+target_pokemon: "fennekin"
+screen_mode: "dual"
+fsm_states:
+  starter_pick: {}
+)");
+
+    EXPECT_THROW(SH3DS::Core::LoadUnifiedHuntConfig(huntConfigYaml), std::runtime_error);
+}
+
+TEST_F(ConfigTest, LoadUnifiedHuntConfig_ThrowsOnUnknownRoiMethod)
+{
+    WriteFile(huntConfigYaml, R"(
+hunt_id: "xy_dual"
+hunt_name: "Dual Screen Test"
+target_pokemon: "fennekin"
+screen_mode: "dual"
+fsm_states:
+  starter_pick:
+    top:
+      roi: "starters_area"
+      method: "something_new_unregistered"
+      hsv_lower: [100, 80, 180]
+      hsv_upper: [118, 115, 225]
+)");
+
+    EXPECT_THROW(SH3DS::Core::LoadUnifiedHuntConfig(huntConfigYaml), std::runtime_error);
+}
+
+TEST_F(ConfigTest, LoadUnifiedHuntConfig_ThrowsOnInvalidThreshold)
+{
+    WriteFile(huntConfigYaml, R"(
+hunt_id: "xy_dual"
+hunt_name: "Dual Screen Test"
+target_pokemon: "fennekin"
+screen_mode: "dual"
+fsm_states:
+  starter_pick:
+    top:
+      roi: "starters_area"
+      method: "color_histogram"
+      hsv_lower: [100, 80, 180]
+      hsv_upper: [118, 115, 225]
+      threshold: 1.50
+)");
+
+    EXPECT_THROW(SH3DS::Core::LoadUnifiedHuntConfig(huntConfigYaml), std::runtime_error);
+}
+
+TEST(ToHuntConfigTest, MapsAllFieldsFromUnified)
+{
+    SH3DS::Core::UnifiedHuntConfig unified;
+    unified.huntId = "xy_sr";
+    unified.huntName = "XY Starter SR";
+    unified.targetPokemon = "fennekin";
+    unified.shinyCheckState = "pokemon_summary";
+    unified.shinyCheckFrames = 20;
+    unified.shinyCheckDelayMs = 800;
+    unified.onShinyAction = "continue";
+    unified.alert.consoleBeep = false;
+    unified.alert.saveScreenshot = false;
+    unified.onStuck.action = "soft_reset";
+    unified.onStuck.maxConsecutive = 3;
+    unified.onDetectionFailure.action = "skip";
+    unified.onDetectionFailure.maxConsecutive = 5;
+
+    SH3DS::Core::InputAction action;
+    action.buttons = {"A"};
+    action.holdMs = 100;
+    unified.actions["game_start"] = {action};
+
+    SH3DS::Core::HuntConfig result = SH3DS::Core::ToHuntConfig(unified);
+
+    EXPECT_EQ(result.huntId, "xy_sr");
+    EXPECT_EQ(result.huntName, "XY Starter SR");
+    EXPECT_EQ(result.targetPokemon, "fennekin");
+    EXPECT_EQ(result.shinyCheckState, "pokemon_summary");
+    EXPECT_EQ(result.shinyCheckFrames, 20);
+    EXPECT_EQ(result.shinyCheckDelayMs, 800);
+    EXPECT_EQ(result.onShinyAction, "continue");
+    EXPECT_FALSE(result.alert.consoleBeep);
+    EXPECT_FALSE(result.alert.saveScreenshot);
+    EXPECT_EQ(result.onStuck.action, "soft_reset");
+    EXPECT_EQ(result.onStuck.maxConsecutive, 3);
+    EXPECT_EQ(result.onDetectionFailure.action, "skip");
+    EXPECT_EQ(result.onDetectionFailure.maxConsecutive, 5);
+    ASSERT_EQ(result.actions.count("game_start"), 1u);
+    EXPECT_EQ(result.actions.at("game_start").front().buttons.front(), "A");
+}
