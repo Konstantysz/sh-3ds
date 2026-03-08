@@ -207,6 +207,40 @@ namespace SH3DS::Core
 
             return state;
         }
+
+        std::map<std::string, std::vector<InputAction>> ParseInputActions(const YAML::Node &actionsNode)
+        {
+            std::map<std::string, std::vector<InputAction>> result;
+            for (auto it = actionsNode.begin(); it != actionsNode.end(); ++it)
+            {
+                std::string stateName = it->first.as<std::string>();
+                std::vector<InputAction> stateActions;
+                for (const auto &actionNode : it->second)
+                {
+                    InputAction action;
+                    if (actionNode["buttons"])
+                    {
+                        for (const auto &btn : actionNode["buttons"])
+                        {
+                            action.buttons.push_back(btn.as<std::string>());
+                        }
+                    }
+                    action.holdMs = actionNode["hold_ms"].as<int>(120);
+                    action.waitAfterMs = actionNode["wait_after_ms"].as<int>(200);
+                    action.repeat = actionNode["repeat"].as<bool>(false);
+                    action.waitMs = actionNode["wait_ms"].as<int>(0);
+                    if (actionNode["touch_x"] || actionNode["touch_y"])
+                    {
+                        action.touch = true;
+                        action.touchX = actionNode["touch_x"].as<float>(0.0f);
+                        action.touchY = actionNode["touch_y"].as<float>(0.0f);
+                    }
+                    stateActions.push_back(action);
+                }
+                result[stateName] = stateActions;
+            }
+            return result;
+        }
     } // namespace
 
     HardwareConfig LoadHardwareConfig(const std::string &path)
@@ -444,36 +478,7 @@ namespace SH3DS::Core
 
             if (auto actions = hunt["actions"])
             {
-                for (auto it = actions.begin(); it != actions.end(); ++it)
-                {
-                    std::string stateName = it->first.as<std::string>();
-                    std::vector<InputAction> stateActions;
-
-                    for (const auto &actionNode : it->second)
-                    {
-                        InputAction action;
-                        if (actionNode["buttons"])
-                        {
-                            for (const auto &btn : actionNode["buttons"])
-                            {
-                                action.buttons.push_back(btn.as<std::string>());
-                            }
-                        }
-                        action.holdMs = actionNode["hold_ms"].as<int>(120);
-                        action.waitAfterMs = actionNode["wait_after_ms"].as<int>(200);
-                        action.repeat = actionNode["repeat"].as<bool>(false);
-                        action.waitMs = actionNode["wait_ms"].as<int>(0);
-                        if (actionNode["touch_x"] || actionNode["touch_y"])
-                        {
-                            action.touch = true;
-                            action.touchX = actionNode["touch_x"].as<float>(0.0f);
-                            action.touchY = actionNode["touch_y"].as<float>(0.0f);
-                        }
-                        stateActions.push_back(action);
-                    }
-
-                    config.actions[stateName] = stateActions;
-                }
+                config.actions = ParseInputActions(actions);
             }
         }
 
@@ -580,36 +585,7 @@ namespace SH3DS::Core
         // Input actions per state
         if (auto actions = root["actions"])
         {
-            for (auto it = actions.begin(); it != actions.end(); ++it)
-            {
-                std::string stateName = it->first.as<std::string>();
-                std::vector<InputAction> stateActions;
-
-                for (const auto &actionNode : it->second)
-                {
-                    InputAction action;
-                    if (actionNode["buttons"])
-                    {
-                        for (const auto &btn : actionNode["buttons"])
-                        {
-                            action.buttons.push_back(btn.as<std::string>());
-                        }
-                    }
-                    action.holdMs = actionNode["hold_ms"].as<int>(120);
-                    action.waitAfterMs = actionNode["wait_after_ms"].as<int>(200);
-                    action.repeat = actionNode["repeat"].as<bool>(false);
-                    action.waitMs = actionNode["wait_ms"].as<int>(0);
-                    if (actionNode["touch_x"] || actionNode["touch_y"])
-                    {
-                        action.touch = true;
-                        action.touchX = actionNode["touch_x"].as<float>(0.0f);
-                        action.touchY = actionNode["touch_y"].as<float>(0.0f);
-                    }
-                    stateActions.push_back(action);
-                }
-
-                config.actions[stateName] = stateActions;
-            }
+            config.actions = ParseInputActions(actions);
         }
 
         // Hunt behaviour
