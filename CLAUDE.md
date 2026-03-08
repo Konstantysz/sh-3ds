@@ -6,19 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Configure (first run downloads vcpkg deps — OpenCV takes 10-30 min)
-cmake --preset debug
+cmake --preset ninja-debug
 
 # Build
-cmake --build --preset debug
+cmake --build --preset ninja-debug
 
 # Run all tests
-ctest --preset debug
+ctest --preset ninja-debug
 
 # Run a single test executable
-./build/debug/tests/TestTypes        # or any test target name
+./build/ninja-debug/tests/TestTypes        # or any test target name
 
 # Release build
-cmake --preset release && cmake --build --preset release
+cmake --preset ninja-release && cmake --build --preset ninja-release
 ```
 
 Requires `VCPKG_ROOT` environment variable pointing to vcpkg installation.
@@ -51,19 +51,19 @@ FrameSource (abstract) → FramePreprocessor → GameStateFSM (abstract) → Shi
                                               Orchestrator (main loop, watchdog)
 ```
 
-**Abstract bases** (no `I` prefix) in `include/sh3ds/`:
+**Abstract bases** (no `I` prefix) in `src/`:
 
-- `FrameSource` — frame acquisition (`FileFrameSource` for replay, `MjpegFrameSource` planned)
-- `GameStateFSM` — game state tracking (`ConfigDrivenFSM` loads states/rules from YAML)
+- `FrameSource` — frame acquisition (`FileFrameSource`, `VideoFrameSource`; `MjpegFrameSource` planned)
+- `GameStateFSM` — game state tracking (`CXXStateTreeFSM` — states in C++, detection params in YAML)
 - `ShinyDetector` — shiny detection (`DominantColorDetector`, `HistogramDetector`)
 - `HuntStrategy` — hunt orchestration (`SoftResetStrategy`)
 - `InputAdapter` — 3DS input injection (`MockInputAdapter` for testing)
 
-**Logging:** Uses `Kappa::Logger` macros like `LOG_ERROR` or `LOG_INFO`.
+**Logging:** `Kappa::Logger` macros — `LOG_TRACE/DEBUG/INFO/WARN/ERROR/CRITICAL`.
 
-**Game states are strings** (not enums) loaded from YAML — new games = new config, no recompilation. FSM uses debounce (N consecutive frames) before transitioning.
+**Game states are strings** (not enums) — new games = new config, no recompilation. FSM uses debounce (N consecutive frames) before transitioning.
 
-**Config hierarchy:** `config/hardware.yaml` (camera, console, screen calibration) → `config/games/*.yaml` (ROIs, FSM states) → `config/hunts/*.yaml` (input sequences per state) → `config/detection/*.yaml` (HSV ranges, histogram refs, fusion weights).
+**Config:** `config/hardware.yaml` (camera + warp target size) + `config/hunts/<id>.yaml` (unified: ROIs, FSM states, detection params, input sequences, shiny detector).
 
 ## Key Constants
 
