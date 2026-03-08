@@ -53,19 +53,24 @@ namespace SH3DS::Capture
         std::optional<Core::ROISet> Process(const cv::Mat &cameraFrame) const;
 
         /**
-         * @brief Processes both top and bottom screens from a single camera frame.
+         * @brief Warps both screens from a single camera frame and extracts bottom ROIs.
+         *
+         * @p topRois is intentionally left empty. Callers must apply any post-warp
+         * correction to @p warpedTop and then call ReextractRois() to populate @p topRois.
+         * @p bottomRois are extracted immediately since they do not require color correction.
+         *
          * @param cameraFrame The raw camera frame.
          * @return Dual screen result if successful, nullopt otherwise.
          */
         std::optional<DualScreenResult> ProcessDualScreen(const cv::Mat &cameraFrame) const;
 
         /**
-         * @brief Re-extracts ROIs from already-warped screen images and updates the result in-place.
+         * @brief Extracts top-screen ROIs from the (possibly corrected) warpedTop image.
          *
-         * Use this after applying post-processing (e.g. color correction) to warpedTop or warpedBottom:
-         * call ImproveFrameColors on the warped images first, then call this to refresh topRois/bottomRois.
+         * Call this after applying color correction to @p result.warpedTop.
+         * Only @p topRois is updated; @p bottomRois is left unchanged.
          *
-         * @param result DualScreenResult whose warpedTop/warpedBottom have been modified in-place.
+         * @param result DualScreenResult whose warpedTop has been corrected.
          */
         void ReextractRois(DualScreenResult &result) const;
 

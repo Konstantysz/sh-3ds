@@ -88,14 +88,14 @@ namespace SH3DS::Capture
         DualScreenResult result;
 
         // warpedTop/warpedBottom are independent allocations from warpPerspective.
-        // ROIs are cloned in ExtractRois because sub-regions share memory with the source Mat.
+        // topRois are intentionally left empty here — callers must apply any post-warp
+        // correction (e.g. color improvement) to warpedTop and then call ReextractRois()
+        // to populate topRois from the corrected image.
         cv::warpPerspective(
             cameraFrame, result.warpedTop, warpMatrix, cv::Size(calibration.targetWidth, calibration.targetHeight));
 
-        // Extract ROIs from top screen
-        result.topRois = ExtractRois(result.warpedTop, calibration);
-
-        // Warp bottom screen if calibrated
+        // Warp bottom screen if calibrated and extract its ROIs immediately.
+        // Bottom ROIs are used for detection without color correction.
         if (bottomCalibration && !bottomWarpMatrix.empty())
         {
             cv::warpPerspective(cameraFrame,
@@ -113,10 +113,6 @@ namespace SH3DS::Capture
         if (!result.warpedTop.empty())
         {
             result.topRois = ExtractRois(result.warpedTop, calibration);
-        }
-        if (!result.warpedBottom.empty() && bottomCalibration)
-        {
-            result.bottomRois = ExtractRois(result.warpedBottom, *bottomCalibration);
         }
     }
 

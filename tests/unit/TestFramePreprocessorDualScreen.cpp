@@ -79,7 +79,7 @@ TEST_F(DualScreenTest, ProcessDualScreenReturnsBothScreens)
     EXPECT_EQ(result->warpedBottom.rows, 240);
 }
 
-TEST_F(DualScreenTest, ProcessDualScreenExtractsTopROIs)
+TEST_F(DualScreenTest, ProcessDualScreenExtractsBottomRoisOnly)
 {
     std::vector<SH3DS::Core::RoiDefinition> rois = {
         { .name = "top_full", .x = 0.0, .y = 0.0, .w = 1.0, .h = 1.0 },
@@ -90,9 +90,9 @@ TEST_F(DualScreenTest, ProcessDualScreenExtractsTopROIs)
     auto result = preprocessor.ProcessDualScreen(cameraFrame);
 
     ASSERT_TRUE(result.has_value());
-    ASSERT_FALSE(result->topRois.empty());
-    EXPECT_TRUE(result->topRois.contains("top_full"));
-    EXPECT_TRUE(result->topRois.contains("top_strip"));
+    // topRois are intentionally empty after ProcessDualScreen — callers must call ReextractRois()
+    EXPECT_TRUE(result->topRois.empty());
+    // bottomRois are populated immediately (no color correction applied to bottom)
     ASSERT_FALSE(result->bottomRois.empty());
     EXPECT_TRUE(result->bottomRois.contains("top_full"));
     EXPECT_TRUE(result->bottomRois.contains("top_strip"));
@@ -159,6 +159,7 @@ TEST_F(DualScreenTest, ProcessAndProcessDualScreenProduceSameTopROIs)
 
     auto singleResult = preprocessor.Process(cameraFrame);
     auto dualResult = preprocessor.ProcessDualScreen(cameraFrame);
+    preprocessor.ReextractRois(*dualResult); // populate topRois after ProcessDualScreen
 
     ASSERT_TRUE(singleResult.has_value());
     ASSERT_TRUE(dualResult.has_value());
