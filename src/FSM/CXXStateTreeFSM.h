@@ -152,8 +152,14 @@ namespace SH3DS::FSM
          */
         double EvaluateColorHistogram(const cv::Mat &roi, const Core::RoiDetectionParams &roiDetectionParameters) const;
 
+        /**
+         * @brief Advances the intensity detector once per frame using the first configured intensity_event ROI.
+         * @param topRois The top-screen ROI set for the current frame.
+         */
+        void AdvanceIntensityDetectors(const Core::ROISet &topRois);
+
         /** @brief Returns 1.0 if a new Drop+Raise pair has completed since last transition, else 0.0. */
-        double EvaluateIntensityEvent(const cv::Mat &roi) const;
+        double EvaluateIntensityEvent() const;
 
         /** @brief Computes the average normalised V-channel value [0,1] from a BGR ROI. */
         double ComputeAverageV(const cv::Mat &roi) const;
@@ -184,8 +190,8 @@ namespace SH3DS::FSM
         std::vector<Core::StateTransition> transitionHistory; ///< Transition history
         mutable Vision::TemplateMatcher templateMatcher;      ///< Template matcher for detection
 
-        mutable Vision::IntensityEventDetector topIntensityDetector_; ///< Tracks top-screen brightness for intensity_event method
-        mutable std::size_t raisesAtLastTransition_ = 0;              ///< events_.size() baseline at last state transition
-        mutable uint64_t intensityFrameCounter_ = 0;                  ///< Frame counter fed to IntensityEventDetector
+        Vision::IntensityEventDetector topIntensityDetector; ///< Tracks top-screen brightness for intensity_event method
+        std::size_t raisesAtLastTransition = 0;             ///< events_.size() baseline at last state transition
+        uint64_t intensityFrameCounter = 0;                 ///< Frame counter fed to IntensityEventDetector
     };
 } // namespace SH3DS::FSM

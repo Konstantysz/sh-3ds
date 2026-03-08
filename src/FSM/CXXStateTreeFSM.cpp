@@ -75,6 +75,8 @@ namespace SH3DS::FSM
     {
         LOG_DEBUG("Called `CXXStateTreeFSM::Update()` on new frame. Current state = {}.", currentState);
 
+        AdvanceIntensityDetectors(topRois);
+
         const auto bestCandidateState = DetectBestCandidateState(topRois, bottomRois);
         if (bestCandidateState.state.empty() || bestCandidateState.confidence < 0.01)
         {
@@ -144,7 +146,7 @@ namespace SH3DS::FSM
         currentState = pendingState;
         stateEnteredAt = transition.timestamp;
         pendingFrameCount = 0;
-        raisesAtLastTransition_ = topIntensityDetector_.GetEvents().size();
+        raisesAtLastTransition = topIntensityDetector.GetEvents().size();
 
         RecordTransition(transition);
 
@@ -171,9 +173,9 @@ namespace SH3DS::FSM
         pendingState.clear();
         pendingFrameCount = 0;
         transitionHistory.clear();
-        topIntensityDetector_.Reset();
-        raisesAtLastTransition_ = 0;
-        intensityFrameCounter_ = 0;
+        topIntensityDetector.Reset();
+        raisesAtLastTransition = 0;
+        intensityFrameCounter = 0;
     }
 
     bool CXXStateTreeFSM::IsStuck() const
@@ -281,7 +283,7 @@ namespace SH3DS::FSM
                     {
                         return std::nullopt;
                     }
-                    confidence = EvaluateIntensityEvent(roiMat);
+                    confidence = EvaluateIntensityEvent();
                 }
                 else if (method == "always_true")
                 {
@@ -433,22 +435,42 @@ namespace SH3DS::FSM
         return meanVal[2] / 255.0;
     }
 
-    double CXXStateTreeFSM::EvaluateIntensityEvent(const cv::Mat &roi) const
+    void CXXStateTreeFSM::AdvanceIntensityDetectors(const Core::ROISet &topRois)
     {
-        const double avgV = ComputeAverageV(roi);
-        LOG_DEBUG("Average intensity of V = {}", avgV);
-        topIntensityDetector_.Update(avgV, intensityFrameCounter_++);
+        for (const auto &sc : stateConfigs)
+        {
+            if (!sc.detectionParameters.top.has_value())
+            {
+                continue;
+            }
+            if (sc.detectionParameters.top->method != "intensity_event")
+            {
+                continue;
+            }
+            auto it = topRois.find(sc.detectionParameters.top->roi);
+            if (it == topRois.end() || it->second.empty())
+            {
+                continue;
+            }
+            const double avgV = ComputeAverageV(it->second);
+            LOG_DEBUG("IntensityDetector advance: avgV={:.3f} frame={}", avgV, intensityFrameCounter);
+            topIntensityDetector.Update(avgV, intensityFrameCounter++);
+            return;
+        }
+    }
 
-        const auto &events = topIntensityDetector_.GetEvents();
+    double CXXStateTreeFSM::EvaluateIntensityEvent() const
+    {
+        const auto &events = topIntensityDetector.GetEvents();
         const std::size_t eventCount = events.size();
-        if (eventCount <= raisesAtLastTransition_)
+        if (eventCount <= raisesAtLastTransition)
         {
             return 0.0;
         }
 
         // Scan backward from newest event: find a Raise, then a Drop before it
         bool foundRaise = false;
-        for (std::size_t i = eventCount; i > raisesAtLastTransition_; --i)
+        for (std::size_t i = eventCount; i > raisesAtLastTransition; --i)
         {
             const auto &ev = events[i - 1];
             if (!foundRaise)
