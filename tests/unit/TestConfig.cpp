@@ -460,3 +460,44 @@ fsm_states:
 
     EXPECT_THROW(SH3DS::Core::LoadUnifiedHuntConfig(huntConfigYaml), std::runtime_error);
 }
+
+TEST(ToHuntConfigTest, MapsAllFieldsFromUnified)
+{
+    SH3DS::Core::UnifiedHuntConfig unified;
+    unified.huntId = "xy_sr";
+    unified.huntName = "XY Starter SR";
+    unified.targetPokemon = "fennekin";
+    unified.shinyCheckState = "pokemon_summary";
+    unified.shinyCheckFrames = 20;
+    unified.shinyCheckDelayMs = 800;
+    unified.onShinyAction = "continue";
+    unified.alert.consoleBeep = false;
+    unified.alert.saveScreenshot = false;
+    unified.onStuck.action = "soft_reset";
+    unified.onStuck.maxConsecutive = 3;
+    unified.onDetectionFailure.action = "skip";
+    unified.onDetectionFailure.maxConsecutive = 5;
+
+    SH3DS::Core::InputAction action;
+    action.buttons = {"A"};
+    action.holdMs = 100;
+    unified.actions["game_start"] = {action};
+
+    SH3DS::Core::HuntConfig result = SH3DS::Core::ToHuntConfig(unified);
+
+    EXPECT_EQ(result.huntId, "xy_sr");
+    EXPECT_EQ(result.huntName, "XY Starter SR");
+    EXPECT_EQ(result.targetPokemon, "fennekin");
+    EXPECT_EQ(result.shinyCheckState, "pokemon_summary");
+    EXPECT_EQ(result.shinyCheckFrames, 20);
+    EXPECT_EQ(result.shinyCheckDelayMs, 800);
+    EXPECT_EQ(result.onShinyAction, "continue");
+    EXPECT_FALSE(result.alert.consoleBeep);
+    EXPECT_FALSE(result.alert.saveScreenshot);
+    EXPECT_EQ(result.onStuck.action, "soft_reset");
+    EXPECT_EQ(result.onStuck.maxConsecutive, 3);
+    EXPECT_EQ(result.onDetectionFailure.action, "skip");
+    EXPECT_EQ(result.onDetectionFailure.maxConsecutive, 5);
+    ASSERT_EQ(result.actions.count("game_start"), 1u);
+    EXPECT_EQ(result.actions.at("game_start").front().buttons.front(), "A");
+}
