@@ -76,10 +76,10 @@ namespace SH3DS::Vision
         [[nodiscard]] const std::vector<IntensityEvent> &GetEvents() const;
 
     private:
-        IntensityEventConfig config_;        ///< Tuning parameters
-        double vMax_;                        ///< Adaptive brightness baseline
-        bool isBlack_;                       ///< Current black-screen state
-        std::vector<IntensityEvent> events_; ///< Recorded transition events
+        IntensityEventConfig config;        ///< Tuning parameters
+        double vMax;                        ///< Adaptive brightness baseline
+        bool isBlack;                       ///< Current black-screen state
+        std::vector<IntensityEvent> events; ///< Recorded transition events
     };
 
 } // namespace SH3DS::Vision
