@@ -36,6 +36,23 @@ namespace SH3DS::Vision
             return frame;
         }
 
+        // Cache CLAHE and gamma LUT — rebuilt only when config changes.
+        static ColorImprovementConfig cachedConfig{};
+        static cv::Ptr<cv::CLAHE> cachedClahe = cv::createCLAHE(
+            cachedConfig.claheClipLimit, cv::Size(cachedConfig.claheTileWidth, cachedConfig.claheTileHeight));
+        static cv::Mat cachedGammaLut = BuildGammaLut(cachedConfig.gamma);
+
+        if (config.claheClipLimit != cachedConfig.claheClipLimit
+            || config.claheTileWidth != cachedConfig.claheTileWidth
+            || config.claheTileHeight != cachedConfig.claheTileHeight
+            || config.gamma != cachedConfig.gamma)
+        {
+            cachedClahe = cv::createCLAHE(
+                config.claheClipLimit, cv::Size(config.claheTileWidth, config.claheTileHeight));
+            cachedGammaLut = BuildGammaLut(config.gamma);
+            cachedConfig = config;
+        }
+
         cv::Mat working;
 
         // ------------------------------------------------------------------
@@ -71,8 +88,7 @@ namespace SH3DS::Vision
         std::array<cv::Mat, 3> labChannels;
         cv::split(lab, labChannels.data());
 
-        auto clahe = cv::createCLAHE(config.claheClipLimit, cv::Size(config.claheTileWidth, config.claheTileHeight));
-        clahe->apply(labChannels[0], labChannels[0]);
+        cachedClahe->apply(labChannels[0], labChannels[0]);
 
         cv::merge(labChannels.data(), 3, lab);
         cv::cvtColor(lab, working, cv::COLOR_Lab2BGR);
@@ -81,8 +97,7 @@ namespace SH3DS::Vision
         // Stage 3: Gamma correction via LUT
         // ------------------------------------------------------------------
         cv::Mat outputFrame;
-        cv::Mat lut = BuildGammaLut(config.gamma);
-        cv::LUT(working, lut, outputFrame);
+        cv::LUT(working, cachedGammaLut, outputFrame);
 
         return outputFrame;
     }

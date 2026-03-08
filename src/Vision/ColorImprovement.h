@@ -21,11 +21,16 @@ namespace SH3DS::Vision
      * @brief Applies a three-stage color correction to a warped screen frame.
      *
      * Runs Gray World white balance, CLAHE contrast enhancement, and gamma
-     * correction in-place. The input must be a non-empty 8-bit 3-channel BGR
-     * image; other formats are silently ignored.
+     * correction and returns the corrected result as a new image. The input
+     * must be a non-empty 8-bit 3-channel BGR image; other formats are returned
+     * unchanged.
      *
-     * @param frame  BGR image to correct in-place.
+     * The CLAHE object and gamma LUT are cached and only rebuilt when @p config
+     * differs from the previous call.
+     *
+     * @param frame  BGR image to correct.
      * @param config Pipeline parameters (defaults give sensible results).
+     * @return Corrected BGR image.
      */
     [[nodiscard]] cv::Mat ImproveFrameColors(const cv::Mat &frame, const ColorImprovementConfig &config = {});
 } // namespace SH3DS::Vision
