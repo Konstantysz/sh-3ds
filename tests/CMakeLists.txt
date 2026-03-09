@@ -81,6 +81,9 @@ target_link_libraries(TestScreenDetector PRIVATE SH3DS::Capture)
 sh3ds_add_test(TestReplayPipeline integration/TestReplayPipeline.cpp)
 target_link_libraries(TestReplayPipeline PRIVATE SH3DS::Core SH3DS::Capture SH3DS::FSM SH3DS::Vision)
 
+sh3ds_add_test(TestMjpegPipeline integration/TestMjpegPipeline.cpp)
+target_link_libraries(TestMjpegPipeline PRIVATE SH3DS::Core SH3DS::Capture SH3DS::FSM SH3DS::Vision)
+
 sh3ds_add_test(TestXYStarterFennekinReplay integration/TestXYStarterFennekinReplay.cpp)
 target_link_libraries(TestXYStarterFennekinReplay PRIVATE
     SH3DS::Core SH3DS::Capture SH3DS::FSM SH3DS::Vision)
