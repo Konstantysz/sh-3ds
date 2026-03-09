@@ -145,8 +145,8 @@ namespace SH3DS::Core
         bool repeat = false;              ///< Whether to repeat the action
         int waitMs = 0;                   ///< Wait time before repeating the action in milliseconds
         bool touch = false;               ///< Whether to touch the screen instead of pressing buttons
-        float touchX = 0.0f;             ///< Touch X coordinate (normalized 0.0-1.0 of bottom screen width)
-        float touchY = 0.0f;             ///< Touch Y coordinate (normalized 0.0-1.0 of bottom screen height)
+        float touchX = 0.0f;              ///< Touch X coordinate (normalized 0.0-1.0 of bottom screen width)
+        float touchY = 0.0f;              ///< Touch Y coordinate (normalized 0.0-1.0 of bottom screen height)
     };
 
     /**

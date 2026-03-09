@@ -6,20 +6,18 @@ namespace
 {
     SH3DS::Core::HuntDetectionParams MakeCompleteParams()
     {
-        SH3DS::Core::StateDetectionParams defaultSp{
-            .top =
-                SH3DS::Core::RoiDetectionParams{
-                    .roi = "full_screen",
-                    .method = "color_histogram",
-                    .hsvLower = cv::Scalar(0, 0, 0),
-                    .hsvUpper = cv::Scalar(180, 255, 255),
-                    .pixelRatioMin = 0.0,
-                    .pixelRatioMax = 1.0,
-                    .threshold = 0.5,
-                    .templatePath = {},
-                },
-            .bottom = std::nullopt
-        };
+        SH3DS::Core::StateDetectionParams defaultSp{ .top =
+                                                         SH3DS::Core::RoiDetectionParams{
+                                                             .roi = "full_screen",
+                                                             .method = "color_histogram",
+                                                             .hsvLower = cv::Scalar(0, 0, 0),
+                                                             .hsvUpper = cv::Scalar(180, 255, 255),
+                                                             .pixelRatioMin = 0.0,
+                                                             .pixelRatioMax = 1.0,
+                                                             .threshold = 0.5,
+                                                             .templatePath = {},
+                                                         },
+            .bottom = std::nullopt };
 
         SH3DS::Core::HuntDetectionParams params;
         params.debounceFrames = 2;
@@ -74,20 +72,18 @@ TEST(HuntProfiles, CreateXYStarterSRThrowsForRemovedStates)
     params.stateParams.erase("game_menu");
 
     // Add a removed state to make sure it is not required
-    SH3DS::Core::StateDetectionParams defaultSp{
-        .top =
-            SH3DS::Core::RoiDetectionParams{
-                .roi = "full_screen",
-                .method = "color_histogram",
-                .hsvLower = cv::Scalar(0, 0, 0),
-                .hsvUpper = cv::Scalar(180, 255, 255),
-                .pixelRatioMin = 0.0,
-                .pixelRatioMax = 1.0,
-                .threshold = 0.5,
-                .templatePath = {},
-            },
-        .bottom = std::nullopt
-    };
+    SH3DS::Core::StateDetectionParams defaultSp{ .top =
+                                                     SH3DS::Core::RoiDetectionParams{
+                                                         .roi = "full_screen",
+                                                         .method = "color_histogram",
+                                                         .hsvLower = cv::Scalar(0, 0, 0),
+                                                         .hsvUpper = cv::Scalar(180, 255, 255),
+                                                         .pixelRatioMin = 0.0,
+                                                         .pixelRatioMax = 1.0,
+                                                         .threshold = 0.5,
+                                                         .templatePath = {},
+                                                     },
+        .bottom = std::nullopt };
     params.stateParams["soft_reset"] = defaultSp;
 
     try

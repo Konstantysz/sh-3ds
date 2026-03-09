@@ -190,8 +190,9 @@ namespace SH3DS::FSM
         std::vector<Core::StateTransition> transitionHistory; ///< Transition history
         mutable Vision::TemplateMatcher templateMatcher;      ///< Template matcher for detection
 
-        Vision::IntensityEventDetector topIntensityDetector; ///< Tracks top-screen brightness for intensity_event method
-        std::size_t raisesAtLastTransition = 0;             ///< events_.size() baseline at last state transition
-        uint64_t intensityFrameCounter = 0;                 ///< Frame counter fed to IntensityEventDetector
+        Vision::IntensityEventDetector
+            topIntensityDetector;               ///< Tracks top-screen brightness for intensity_event method
+        std::size_t raisesAtLastTransition = 0; ///< events_.size() baseline at last state transition
+        uint64_t intensityFrameCounter = 0;     ///< Frame counter fed to IntensityEventDetector
     };
 } // namespace SH3DS::FSM

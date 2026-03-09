@@ -42,13 +42,11 @@ namespace SH3DS::Vision
             cachedConfig.claheClipLimit, cv::Size(cachedConfig.claheTileWidth, cachedConfig.claheTileHeight));
         static cv::Mat cachedGammaLut = BuildGammaLut(cachedConfig.gamma);
 
-        if (config.claheClipLimit != cachedConfig.claheClipLimit
-            || config.claheTileWidth != cachedConfig.claheTileWidth
-            || config.claheTileHeight != cachedConfig.claheTileHeight
-            || config.gamma != cachedConfig.gamma)
+        if (config.claheClipLimit != cachedConfig.claheClipLimit || config.claheTileWidth != cachedConfig.claheTileWidth
+            || config.claheTileHeight != cachedConfig.claheTileHeight || config.gamma != cachedConfig.gamma)
         {
-            cachedClahe = cv::createCLAHE(
-                config.claheClipLimit, cv::Size(config.claheTileWidth, config.claheTileHeight));
+            cachedClahe =
+                cv::createCLAHE(config.claheClipLimit, cv::Size(config.claheTileWidth, config.claheTileHeight));
             cachedGammaLut = BuildGammaLut(config.gamma);
             cachedConfig = config;
         }

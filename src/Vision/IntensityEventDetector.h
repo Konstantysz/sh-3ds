@@ -30,7 +30,8 @@ namespace SH3DS::Vision
     {
         double dropThreshold = 0.40;  ///< V < dropThreshold  * vMax  -> DROP
         double raiseThreshold = 0.50; ///< V > raiseThreshold * vMax  -> RAISE
-        double vMaxDecay = 0.9995;    ///< Per-frame exponential decay of the baseline (initialised to 0 — ramps up from first frame)
+        double vMaxDecay =
+            0.9995; ///< Per-frame exponential decay of the baseline (initialised to 0 — ramps up from first frame)
     };
 
     /**

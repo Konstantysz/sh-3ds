@@ -102,13 +102,13 @@ TEST(XYStarterFennekinReplay, StateSequenceMatchesExpected)
     // | pokemon_summary  | 491–511           | 502          |
     // | load_game (loop) | 512–604           | 560          |
     //
-    EXPECT_EQ(stateLog[15],  "load_game")       << "Frame 15: expected load_game";
-    EXPECT_EQ(stateLog[42],  "game_start")      << "Frame 42: expected game_start";
+    EXPECT_EQ(stateLog[15], "load_game") << "Frame 15: expected load_game";
+    EXPECT_EQ(stateLog[42], "game_start") << "Frame 42: expected game_start";
     EXPECT_EQ(stateLog[120], "cutscene_part_1") << "Frame 120: expected cutscene_part_1";
-    EXPECT_EQ(stateLog[220], "starter_pick")    << "Frame 220: expected starter_pick";
+    EXPECT_EQ(stateLog[220], "starter_pick") << "Frame 220: expected starter_pick";
     EXPECT_EQ(stateLog[350], "cutscene_part_2") << "Frame 350: expected cutscene_part_2";
-    EXPECT_EQ(stateLog[464], "game_menu")       << "Frame 464: expected game_menu";
-    EXPECT_EQ(stateLog[481], "party_menu")      << "Frame 481: expected party_menu";
+    EXPECT_EQ(stateLog[464], "game_menu") << "Frame 464: expected game_menu";
+    EXPECT_EQ(stateLog[481], "party_menu") << "Frame 481: expected party_menu";
     EXPECT_EQ(stateLog[534], "pokemon_summary") << "Frame 534: expected pokemon_summary";
-    EXPECT_EQ(stateLog[590], "load_game")       << "Frame 590: expected load_game (loop)";
+    EXPECT_EQ(stateLog[590], "load_game") << "Frame 590: expected load_game (loop)";
 }
