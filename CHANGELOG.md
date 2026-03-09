@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `MjpegFrameSource` — live MJPEG stream via `cv::VideoCapture`; reconnect logic configurable via `CameraConfig`
+- Background capture thread in `DebugLayer`; render loop no longer blocks on `Grab()`
+- Live mode UI: `● LIVE` badge, grab FPS counter, frame count in Playback panel
+- `--replay` CLI flag is now optional; omitting it activates live camera mode
+- Camera factory dispatch in `BuildPipeline`: `mjpeg` → `MjpegFrameSource`, replay path → `FileFrameSource`/`VideoFrameSource`
+- MJPEG config example documented in `config/hardware.yaml`
+
 ## [0.1.0] - 2026-03-09
 
 ### Added
