@@ -1,4 +1,11 @@
 camera:
+  # Live mode (IP Webcam app on Android):
+  #   type: "mjpeg"
+  #   uri: "http://192.168.1.x:8080/video"
+  #   reconnect_delay_ms: 2000
+  #   max_reconnect_attempts: 10
+  #   grab_timeout_ms: 5000
+  # USB camera (future): type: "usb", uri: "0"
   type: "file"
   uri: "video_replays/fennekin_normal/images"
 
