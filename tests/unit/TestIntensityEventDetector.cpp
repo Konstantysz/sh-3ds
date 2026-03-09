@@ -65,10 +65,10 @@ TEST(IntensityEventDetector, MultipleDropRaiseCycles)
 {
     SH3DS::Vision::IntensityEventDetector det;
     det.Update(1.0, 0);
-    det.Update(0.05, 1);  // DROP
-    det.Update(0.90, 2);  // RAISE
-    det.Update(0.05, 3);  // DROP again
-    det.Update(0.90, 4);  // RAISE again
+    det.Update(0.05, 1); // DROP
+    det.Update(0.90, 2); // RAISE
+    det.Update(0.05, 3); // DROP again
+    det.Update(0.90, 4); // RAISE again
     ASSERT_EQ(det.GetEvents().size(), 4u);
     EXPECT_EQ(det.GetEvents()[0].type, SH3DS::Vision::IntensityEventType::Drop);
     EXPECT_EQ(det.GetEvents()[1].type, SH3DS::Vision::IntensityEventType::Raise);

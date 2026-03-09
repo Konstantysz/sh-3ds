@@ -479,9 +479,9 @@ TEST(ToHuntConfigTest, MapsAllFieldsFromUnified)
     unified.onDetectionFailure.maxConsecutive = 5;
 
     SH3DS::Core::InputAction action;
-    action.buttons = {"A"};
+    action.buttons = { "A" };
     action.holdMs = 100;
-    unified.actions["game_start"] = {action};
+    unified.actions["game_start"] = { action };
 
     SH3DS::Core::HuntConfig result = SH3DS::Core::ToHuntConfig(unified);
 
