@@ -11,6 +11,8 @@
 #include "PlaybackController.h"
 #include "Vision/ShinyDetector.h"
 
+#include <opencv2/videoio.hpp>
+
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -45,6 +47,7 @@ namespace SH3DS::App
          * @param shinyCheckState FSM state in which shiny detection runs.
          * @param totalFrames Total number of frames in replay source (0 for live).
          * @param targetFps Target playback FPS.
+         * @param recordPath Output path for recording live frames (e.g. "rec.avi"). Empty = no recording.
          */
         DebugLayer(GLFWwindow *window,
             std::unique_ptr<Capture::FrameSource> source,
@@ -56,7 +59,8 @@ namespace SH3DS::App
             std::string shinyRoi,
             std::string shinyCheckState,
             size_t totalFrames,
-            float targetFps);
+            float targetFps,
+            std::string recordPath = "");
 
         ~DebugLayer() override;
 
@@ -142,6 +146,11 @@ namespace SH3DS::App
         float timeInState = 0.0f;                            ///< Time in current state (seconds)
         std::optional<Core::ShinyResult> currentShinyResult; ///< Latest shiny detection result
         size_t lastProcessedFrame = SIZE_MAX;                ///< Last processed frame index (replay only)
+
+        // Recording (live mode only)
+        std::string recordPath;      ///< Output file path; empty = no recording
+        cv::VideoWriter videoWriter; ///< Writes raw frames to file
+        bool isRecording = false;    ///< True once VideoWriter is open
 
         // Frame dimensions (for display)
         int rawWidth = 0;                             ///< Raw frame width

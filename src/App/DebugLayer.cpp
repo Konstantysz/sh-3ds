@@ -21,7 +21,8 @@ namespace SH3DS::App
         std::string shinyRoi,
         std::string shinyCheckState,
         size_t totalFrames,
-        float targetFps)
+        float targetFps,
+        std::string recordPath)
         : source(std::move(source)),
           seeker(seeker),
           screenDetector(std::move(screenDetector)),
@@ -31,7 +32,8 @@ namespace SH3DS::App
           shinyRoi(std::move(shinyRoi)),
           shinyCheckState(std::move(shinyCheckState)),
           playback(totalFrames, targetFps),
-          isLiveSource(seeker == nullptr)
+          isLiveSource(seeker == nullptr),
+          recordPath(std::move(recordPath))
     {
         // Initialize ImGui
         IMGUI_CHECKVERSION();
@@ -66,6 +68,12 @@ namespace SH3DS::App
 
     DebugLayer::~DebugLayer()
     {
+        if (isRecording)
+        {
+            videoWriter.release();
+            LOG_INFO("Recording saved to {}", recordPath);
+        }
+
         // Stop capture thread before tearing down OpenGL/ImGui
         if (captureRunning)
         {
@@ -183,6 +191,30 @@ namespace SH3DS::App
         currentRawFrame = frame.image.clone();
         rawWidth = currentRawFrame.cols;
         rawHeight = currentRawFrame.rows;
+
+        // Lazy-init recorder on first live frame
+        if (!recordPath.empty() && isLiveSource && !isRecording)
+        {
+            videoWriter.open(recordPath,
+                cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
+                static_cast<double>(playback.GetTargetFps()),
+                cv::Size(rawWidth, rawHeight));
+            if (videoWriter.isOpened())
+            {
+                isRecording = true;
+                LOG_INFO("Recording live stream to {}", recordPath);
+            }
+            else
+            {
+                LOG_ERROR("Failed to open VideoWriter at {}", recordPath);
+                recordPath.clear(); // don't retry
+            }
+        }
+
+        if (isRecording)
+        {
+            videoWriter.write(currentRawFrame);
+        }
 
         TextureUploader::Upload(currentRawFrame, rawFrameTexture);
 
