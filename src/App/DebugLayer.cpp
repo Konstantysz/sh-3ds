@@ -30,7 +30,8 @@ namespace SH3DS::App
           detector(std::move(detector)),
           shinyRoi(std::move(shinyRoi)),
           shinyCheckState(std::move(shinyCheckState)),
-          playback(totalFrames, targetFps)
+          playback(totalFrames, targetFps),
+          isLiveSource(seeker == nullptr)
     {
         // Initialize ImGui
         IMGUI_CHECKVERSION();
@@ -49,14 +50,32 @@ namespace SH3DS::App
         topScreenTexture = TextureUploader::CreateTexture();
         bottomScreenTexture = TextureUploader::CreateTexture();
 
-        // Process first frame
-        ProcessCurrentFrame();
-
-        LOG_INFO("DebugLayer initialized ({} frames, {:.1f} FPS)", totalFrames, targetFps);
+        if (isLiveSource)
+        {
+            this->source->Open();
+            lastFpsTime = std::chrono::steady_clock::now();
+            StartCaptureThread();
+            LOG_INFO("DebugLayer initialized (LIVE mode, {:.1f} FPS target)", static_cast<double>(targetFps));
+        }
+        else
+        {
+            GrabCurrentReplayFrame();
+            LOG_INFO("DebugLayer initialized ({} frames, {:.1f} FPS)", totalFrames, static_cast<double>(targetFps));
+        }
     }
 
     DebugLayer::~DebugLayer()
     {
+        // Stop capture thread before tearing down OpenGL/ImGui
+        if (captureRunning)
+        {
+            captureRunning = false;
+            if (captureThread.joinable())
+            {
+                captureThread.join();
+            }
+        }
+
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
@@ -77,10 +96,38 @@ namespace SH3DS::App
 
     void DebugLayer::OnUpdate(float deltaTime)
     {
+        if (isLiveSource)
+        {
+            std::optional<Core::Frame> frame;
+            {
+                std::lock_guard<std::mutex> lock(latestFrameMutex);
+                frame = std::move(latestFrame);
+                latestFrame = std::nullopt;
+            }
+
+            if (frame)
+            {
+                ProcessFrame(*frame);
+            }
+
+            // Update FPS estimate once per second
+            auto now = std::chrono::steady_clock::now();
+            double elapsed = std::chrono::duration<double>(now - lastFpsTime).count();
+            if (elapsed >= 1.0)
+            {
+                size_t grabbed = totalFramesGrabbed.load();
+                liveGrabFps = static_cast<float>(static_cast<double>(grabbed - lastFpsCount) / elapsed);
+                lastFpsCount = grabbed;
+                lastFpsTime = now;
+            }
+
+            return;
+        }
+
         bool advanced = playback.Update(deltaTime);
         if (advanced)
         {
-            ProcessCurrentFrame();
+            GrabCurrentReplayFrame();
         }
     }
 
@@ -131,24 +178,9 @@ namespace SH3DS::App
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
 
-    // TODO: move pipeline processing to a background thread for live sources (v0.2.0)
-    void DebugLayer::ProcessCurrentFrame()
+    void DebugLayer::ProcessFrame(const Core::Frame &frame)
     {
-        size_t frameIndex = playback.GetCurrentFrameIndex();
-        if (frameIndex == lastProcessedFrame)
-        {
-            return;
-        }
-
-        seeker->Seek(frameIndex);
-
-        auto frame = source->Grab();
-        if (!frame)
-        {
-            return;
-        }
-
-        currentRawFrame = frame->image.clone();
+        currentRawFrame = frame.image.clone();
         rawWidth = currentRawFrame.cols;
         rawHeight = currentRawFrame.rows;
 
@@ -156,13 +188,12 @@ namespace SH3DS::App
 
         if (screenDetector)
         {
-            screenDetector->ApplyTo(*preprocessor, frame->image);
+            screenDetector->ApplyTo(*preprocessor, frame.image);
         }
 
-        auto dualScreenResult = preprocessor->ProcessDualScreen(frame->image);
+        auto dualScreenResult = preprocessor->ProcessDualScreen(frame.image);
         if (!dualScreenResult)
         {
-            lastProcessedFrame = frameIndex;
             return;
         }
 
@@ -219,8 +250,50 @@ namespace SH3DS::App
                 currentShinyResult = detector->Detect(it->second);
             }
         }
+    }
 
+    void DebugLayer::GrabCurrentReplayFrame()
+    {
+        size_t frameIndex = playback.GetCurrentFrameIndex();
+        if (frameIndex == lastProcessedFrame)
+        {
+            return;
+        }
+
+        seeker->Seek(frameIndex);
+
+        auto frame = source->Grab();
+        if (!frame)
+        {
+            return;
+        }
+
+        ProcessFrame(*frame);
         lastProcessedFrame = frameIndex;
+    }
+
+    void DebugLayer::StartCaptureThread()
+    {
+        captureRunning = true;
+        captureThread = std::thread([this]() {
+            while (captureRunning)
+            {
+                auto frame = source->Grab();
+                if (frame)
+                {
+                    {
+                        std::lock_guard<std::mutex> lock(latestFrameMutex);
+                        latestFrame = std::move(frame);
+                    }
+                    ++totalFramesGrabbed;
+                }
+                else
+                {
+                    // Avoid busy-spin on error / stream end
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                }
+            }
+        });
     }
 
     void DebugLayer::RenderImagePanel(const char *title, GLuint textureId, int width, int height)
@@ -254,7 +327,14 @@ namespace SH3DS::App
     {
         ImGui::Begin("State Info");
 
-        ImGui::Text("Frame: %zu / %zu", playback.GetCurrentFrameIndex() + 1, playback.GetTotalFrames());
+        if (isLiveSource)
+        {
+            ImGui::Text("Frames: %zu", totalFramesGrabbed.load());
+        }
+        else
+        {
+            ImGui::Text("Frame: %zu / %zu", playback.GetCurrentFrameIndex() + 1, playback.GetTotalFrames());
+        }
 
         ImGui::Separator();
 
@@ -312,11 +392,20 @@ namespace SH3DS::App
     {
         ImGui::Begin("Playback");
 
+        if (isLiveSource)
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 1.0f), "● LIVE");
+            ImGui::SameLine();
+            ImGui::Text("  %.1f fps | %zu frames", static_cast<double>(liveGrabFps), totalFramesGrabbed.load());
+            ImGui::End();
+            return;
+        }
+
         // Transport buttons
         if (ImGui::Button("<<"))
         {
             playback.StepBackward();
-            ProcessCurrentFrame();
+            GrabCurrentReplayFrame();
         }
         ImGui::SameLine();
 
@@ -339,7 +428,7 @@ namespace SH3DS::App
         if (ImGui::Button(">>"))
         {
             playback.StepForward();
-            ProcessCurrentFrame();
+            GrabCurrentReplayFrame();
         }
 
         // Frame scrubber
@@ -354,7 +443,7 @@ namespace SH3DS::App
         if (ImGui::SliderInt("##frame", &frameIdx, 0, maxFrame, "Frame %d"))
         {
             playback.SetFrameIndex(static_cast<size_t>(frameIdx));
-            ProcessCurrentFrame();
+            GrabCurrentReplayFrame();
         }
 
         // Speed control
