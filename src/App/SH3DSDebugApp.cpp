@@ -1,6 +1,7 @@
 #include "SH3DSDebugApp.h"
 
 #include "Capture/FileFrameSource.h"
+#include "Capture/MjpegFrameSource.h"
 #include "Capture/VideoFrameSource.h"
 #include "Core/Config.h"
 #include "DebugLayer.h"
@@ -9,6 +10,8 @@
 #include "Vision/DominantColorDetector.h"
 
 #include <filesystem>
+
+#include <GLFW/glfw3.h>
 
 namespace SH3DS::App
 {
@@ -20,6 +23,9 @@ namespace SH3DS::App
         auto pipeline = BuildPipeline(hardwareConfigPath, huntConfigPath, replaySourcePath);
 
         GLFWwindow *windowHandle = GetWindow().GetHandle();
+
+        const char *title = (pipeline.seeker == nullptr) ? "SH-3DS Debug — LIVE" : "SH-3DS Debug — Replay";
+        glfwSetWindowTitle(windowHandle, title);
 
         PushLayer<DebugLayer>(windowHandle,
             std::move(pipeline.source),
@@ -43,32 +49,48 @@ namespace SH3DS::App
 
         LOG_INFO("SH-3DS Debug GUI");
         LOG_INFO("Hunt: {} (target: {})", unifiedConfig.huntName, unifiedConfig.targetPokemon);
-        LOG_INFO("Replay: {}", replaySourcePath);
 
         PipelineComponents pipeline;
 
-        // Create frame source
-        std::filesystem::path sourcePath(replaySourcePath);
-
-        if (std::filesystem::is_directory(sourcePath))
+        // Create frame source — three-way dispatch
+        if (!replaySourcePath.empty())
         {
-            auto fileSource =
-                std::make_unique<Capture::FileFrameSource>(sourcePath, hardwareConfig.orchestrator.targetFps);
-            fileSource->Open();
-            pipeline.totalFrames = fileSource->GetFrameCount();
-            pipeline.seeker = std::shared_ptr<Capture::FrameSeeker>(fileSource.get());
-            LOG_INFO("Source: directory ({} frames)", pipeline.totalFrames);
-            pipeline.source = std::move(fileSource);
+            std::filesystem::path sourcePath(replaySourcePath);
+            LOG_INFO("Mode: Replay ({})", replaySourcePath);
+
+            if (std::filesystem::is_directory(sourcePath))
+            {
+                auto fileSource =
+                    std::make_unique<Capture::FileFrameSource>(sourcePath, hardwareConfig.orchestrator.targetFps);
+                fileSource->Open();
+                pipeline.totalFrames = fileSource->GetFrameCount();
+                pipeline.seeker = std::shared_ptr<Capture::FrameSeeker>(fileSource.get());
+                LOG_INFO("Source: directory ({} frames)", pipeline.totalFrames);
+                pipeline.source = std::move(fileSource);
+            }
+            else
+            {
+                auto videoSource =
+                    std::make_unique<Capture::VideoFrameSource>(sourcePath, hardwareConfig.orchestrator.targetFps);
+                videoSource->Open();
+                pipeline.totalFrames = videoSource->GetFrameCount();
+                pipeline.seeker = std::shared_ptr<Capture::FrameSeeker>(videoSource.get());
+                LOG_INFO("Source: video ({} frames)", pipeline.totalFrames);
+                pipeline.source = std::move(videoSource);
+            }
+        }
+        else if (hardwareConfig.camera.type == "mjpeg")
+        {
+            LOG_INFO("Mode: LIVE (MJPEG) uri={}", hardwareConfig.camera.uri);
+            pipeline.source = Capture::MjpegFrameSource::CreateMjpegFrameSource(hardwareConfig.camera);
+            pipeline.seeker = nullptr; // live streams are not seekable
+            // TODO(usb-camera): type == "usb" → capture.open(std::stoi(uri))
         }
         else
         {
-            auto videoSource =
-                std::make_unique<Capture::VideoFrameSource>(sourcePath, hardwareConfig.orchestrator.targetFps);
-            videoSource->Open();
-            pipeline.totalFrames = videoSource->GetFrameCount();
-            pipeline.seeker = std::shared_ptr<Capture::FrameSeeker>(videoSource.get());
-            LOG_INFO("Source: video ({} frames)", pipeline.totalFrames);
-            pipeline.source = std::move(videoSource);
+            LOG_ERROR("Unknown camera type: {} — set camera.type to \"mjpeg\" or provide --replay",
+                hardwareConfig.camera.type);
+            throw std::runtime_error("Unknown camera type: " + hardwareConfig.camera.type);
         }
 
         // Create screen detector for automatic corner detection
@@ -102,7 +124,7 @@ namespace SH3DS::App
     {
         Kappa::ApplicationSpecification spec;
         spec.name = "SH-3DS Debug";
-        spec.windowSpecification.title = "SH-3DS Debug - Offline Replay";
+        spec.windowSpecification.title = "SH-3DS Debug";
         spec.windowSpecification.width = 1600;
         spec.windowSpecification.height = 900;
         return spec;

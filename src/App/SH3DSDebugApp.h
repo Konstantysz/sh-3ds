@@ -52,7 +52,8 @@ namespace SH3DS::App
          * @param hardwareConfigPath Path to hardware config YAML.
          * @param huntConfigPath Path to unified hunt config YAML.
          * @param replaySourcePath Path to replay source (directory or video file).
-         * @return Assembled pipeline components.
+         *        When empty, dispatches on hardware.yaml camera.type for live sources.
+         * @return Assembled pipeline components. seeker == nullptr signals live mode.
          */
         static PipelineComponents BuildPipeline(const std::string &hardwareConfigPath,
             const std::string &huntConfigPath,

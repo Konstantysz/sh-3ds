@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
 
     app.add_option("--hardware", hardwareConfigPath, "Path to hardware config YAML");
     app.add_option("--hunt-config", huntConfigPath, "Path to unified hunt config YAML");
-    app.add_option("--replay", replayPath, "Replay source (directory or video file)")->required();
+    app.add_option("--replay", replayPath, "Replay source (directory or video file)");
 
     CLI11_PARSE(app, argc, argv);
 
