@@ -27,7 +27,8 @@ namespace SH3DS::App
          */
         SH3DSDebugApp(const std::string &hardwareConfigPath,
             const std::string &huntConfigPath,
-            const std::string &replaySourcePath);
+            const std::string &replaySourcePath,
+            const std::string &recordPath = "");
 
     private:
         /**

@@ -18,16 +18,18 @@ int main(int argc, char *argv[])
     std::string hardwareConfigPath = "config/hardware.yaml";
     std::string huntConfigPath = "config/hunts/xy_starter_sr_fennekin.yaml";
     std::string replayPath;
+    std::string recordPath;
 
     app.add_option("--hardware", hardwareConfigPath, "Path to hardware config YAML");
     app.add_option("--hunt-config", huntConfigPath, "Path to unified hunt config YAML");
     app.add_option("--replay", replayPath, "Replay source (directory or video file)");
+    app.add_option("--record", recordPath, "Record live stream to a video file (e.g. rec.avi)");
 
     CLI11_PARSE(app, argc, argv);
 
     try
     {
-        SH3DS::App::SH3DSDebugApp debugApp(hardwareConfigPath, huntConfigPath, replayPath);
+        SH3DS::App::SH3DSDebugApp debugApp(hardwareConfigPath, huntConfigPath, replayPath, recordPath);
         debugApp.Run();
     }
     catch (const std::exception &e)

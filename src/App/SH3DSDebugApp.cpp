@@ -17,7 +17,8 @@ namespace SH3DS::App
 {
     SH3DSDebugApp::SH3DSDebugApp(const std::string &hardwareConfigPath,
         const std::string &huntConfigPath,
-        const std::string &replaySourcePath)
+        const std::string &replaySourcePath,
+        const std::string &recordPath)
         : Application(GetSpec())
     {
         auto pipeline = BuildPipeline(hardwareConfigPath, huntConfigPath, replaySourcePath);
@@ -37,7 +38,8 @@ namespace SH3DS::App
             pipeline.shinyRoi,
             pipeline.shinyCheckState,
             pipeline.totalFrames,
-            pipeline.targetFps);
+            pipeline.targetFps,
+            recordPath);
     }
 
     SH3DSDebugApp::PipelineComponents SH3DSDebugApp::BuildPipeline(const std::string &hardwareConfigPath,
