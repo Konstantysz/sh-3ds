@@ -10,6 +10,18 @@
 - `--replay` CLI flag is now optional; omitting it activates live camera mode
 - Camera factory dispatch in `BuildPipeline`: `mjpeg` → `MjpegFrameSource`, replay path → `FileFrameSource`/`VideoFrameSource`
 - MJPEG config example documented in `config/hardware.yaml`
+- `resetting` FSM state between `pokemon_summary` and `load_game` to fix premature `load_game → game_start` transition on soft reset
+- `analyze_frames.py` tool for frame-level pipeline inspection
+- Integration test `XYStarterFennekinLive` for real camera footage (skipped when frames absent)
+
+### Fixed
+
+- Mutex UB in `MjpegFrameSource::TryReconnect` — `lock_guard` + raw `mutex.unlock()`/`lock()` caused double-unlock (UB); replaced with `unique_lock` passed by reference
+- `MjpegFrameSource::Open()` now calls `capture.release()` before reopening, making it safe to call without an intervening `Close()`
+- `DebugLayer` destructor now joins capture thread before releasing `videoWriter`
+- Capture thread now exits cleanly when frame source is permanently closed (exhausted reconnects)
+- `TestHuntProfiles` fixture was missing `"resetting"` state — `CreateXYStarterSRSucceedsWithCompleteParams` was incorrectly throwing
+- Unnecessary `cv::Mat::clone()` in `DebugLayer::ProcessFrame` replaced with refcounted shallow copy (O(1))
 
 ## [0.1.0] - 2026-03-09
 
