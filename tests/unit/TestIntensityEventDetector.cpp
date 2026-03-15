@@ -118,7 +118,7 @@ TEST(IntensityEventDetector, CustomConfigDropThreshold)
     cfg.dropThreshold = 0.10; // Only drop if below 10% of vMax
     SH3DS::Vision::IntensityEventDetector det(cfg);
     det.Update(1.0, 0);
-    // At 15% of vMax — with default 0.40 this would DROP, but with 0.10 it should not
+    // At 15% of vMax — with default 0.30 this would DROP, but with 0.10 it should not
     det.Update(0.15, 1);
     EXPECT_FALSE(det.IsBlack());
     EXPECT_TRUE(det.GetEvents().empty());

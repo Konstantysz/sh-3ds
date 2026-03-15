@@ -455,7 +455,7 @@ namespace SH3DS::FSM
                 continue;
             }
             const double avgV = ComputeAverageV(it->second);
-            LOG_INFO("IntensityDetector advance: avgV={:.3f} frame={}", avgV, intensityFrameCounter);
+            LOG_DEBUG("IntensityDetector advance: avgV={:.3f} frame={}", avgV, intensityFrameCounter);
             topIntensityDetector.Update(avgV, intensityFrameCounter++);
             return;
         }
