@@ -27,7 +27,7 @@ TEST(IntensityEventDetector, DropEventWhenValueFallsBelowThreshold)
     SH3DS::Vision::IntensityEventDetector det;
     // Establish a vMax baseline
     det.Update(1.0, 0);
-    // Value drops below 40% of vMax (1.0) -> should trigger DROP
+    // Value drops below 30% of vMax (1.0) -> should trigger DROP
     bool isBlack = det.Update(0.10, 1);
     EXPECT_TRUE(isBlack);
     EXPECT_TRUE(det.IsBlack());

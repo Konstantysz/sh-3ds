@@ -77,10 +77,17 @@ namespace SH3DS::FSM
 
         builder.AddState({
             .id = "pokemon_summary",
-            .transitionsTo = { "load_game" },
+            .transitionsTo = { "resetting" },
             .maxDurationS = 20,
             .shinyCheck = true,
             .detectionParameters = RequireState(params, "pokemon_summary"),
+        });
+
+        builder.AddState({
+            .id = "resetting",
+            .transitionsTo = { "load_game" },
+            .maxDurationS = 30,
+            .detectionParameters = RequireState(params, "resetting"),
         });
 
         return builder.Build();

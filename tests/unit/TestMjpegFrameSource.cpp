@@ -1,6 +1,5 @@
 #include "Capture/FrameSeeker.h"
 #include "Capture/MjpegFrameSource.h"
-
 #include "Core/Config.h"
 
 #include <opencv2/core.hpp>
