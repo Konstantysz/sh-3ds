@@ -1,8 +1,7 @@
 #pragma once
 
-#include "FrameSource.h"
-
 #include "Core/Config.h"
+#include "FrameSource.h"
 
 #include <opencv2/videoio.hpp>
 
@@ -45,20 +44,21 @@ namespace SH3DS::Capture
     private:
         /**
          * @brief Attempts to reconnect up to maxReconnectAttempts times.
+         * @param lock The unique_lock already held by the caller (may be temporarily released during sleep).
          * @return True if reconnection succeeded.
          */
-        bool TryReconnect();
+        bool TryReconnect(std::unique_lock<std::mutex> &lock);
 
-        std::string uri;                ///< Stream URI (HTTP URL or local file path)
-        int reconnectDelayMs;           ///< Delay between reconnect attempts in ms
-        int maxReconnectAttempts;       ///< Maximum number of reconnect attempts
-        int grabTimeoutMs;              ///< Open/read timeout in ms (passed to VideoCapture)
-        cv::VideoCapture capture;       ///< OpenCV capture object
-        mutable std::mutex mutex;       ///< Guards capture and frame counter
-        size_t frameCounter = 0;        ///< Monotonically increasing sequence number
+        std::string uri;                  ///< Stream URI (HTTP URL or local file path)
+        int reconnectDelayMs;             ///< Delay between reconnect attempts in ms
+        int maxReconnectAttempts;         ///< Maximum number of reconnect attempts
+        int grabTimeoutMs;                ///< Open/read timeout in ms (passed to VideoCapture)
+        cv::VideoCapture capture;         ///< OpenCV capture object
+        mutable std::mutex mutex;         ///< Guards capture and frame counter
+        size_t frameCounter = 0;          ///< Monotonically increasing sequence number
         int currentReconnectAttempts = 0; ///< Reconnect attempts used in last failure run
-        bool isOpen = false;            ///< Whether capture is currently open
-        bool permanentlyFailed = false; ///< True after exhausting all reconnect attempts
+        bool isOpen = false;              ///< Whether capture is currently open
+        bool permanentlyFailed = false;   ///< True after exhausting all reconnect attempts
     };
 
 } // namespace SH3DS::Capture

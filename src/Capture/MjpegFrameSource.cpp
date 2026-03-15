@@ -19,6 +19,7 @@ namespace SH3DS::Capture
     {
         std::lock_guard<std::mutex> lock(mutex);
 
+        capture.release();
         permanentlyFailed = false;
         currentReconnectAttempts = 0;
         frameCounter = 0;
@@ -51,7 +52,7 @@ namespace SH3DS::Capture
 
     std::optional<Core::Frame> MjpegFrameSource::Grab()
     {
-        std::lock_guard<std::mutex> lock(mutex);
+        std::unique_lock<std::mutex> lock(mutex);
 
         if (!isOpen || permanentlyFailed)
         {
@@ -62,8 +63,12 @@ namespace SH3DS::Capture
         if (!capture.read(image) || image.empty())
         {
             LOG_WARN("MjpegFrameSource: Read failed, attempting reconnect...");
-            // mutex is already held — TryReconnect must not re-lock
-            if (!TryReconnect())
+            if (!TryReconnect(lock))
+            {
+                return std::nullopt;
+            }
+            // Re-check state: Close() may have run during the reconnect sleep
+            if (!isOpen || permanentlyFailed)
             {
                 return std::nullopt;
             }
@@ -95,9 +100,9 @@ namespace SH3DS::Capture
         return "MjpegFrameSource(" + uri + ")";
     }
 
-    bool MjpegFrameSource::TryReconnect()
+    bool MjpegFrameSource::TryReconnect(std::unique_lock<std::mutex> &lock)
     {
-        // Called with mutex already held.
+        // Called with lock already held.
         for (int attempt = 1; attempt <= maxReconnectAttempts; ++attempt)
         {
             currentReconnectAttempts = attempt;
@@ -107,12 +112,16 @@ namespace SH3DS::Capture
 
             if (reconnectDelayMs > 0)
             {
-                // Temporarily release the mutex while sleeping to avoid blocking other threads.
-                // We re-check state after re-acquiring — but since we are the only producer this
-                // is safe for the single-slot live capture pattern.
-                mutex.unlock();
+                // Temporarily release the lock while sleeping so Close() / IsOpen() are not blocked.
+                // Re-check state after reacquire — Close() may have run during the sleep.
+                lock.unlock();
                 std::this_thread::sleep_for(std::chrono::milliseconds(reconnectDelayMs));
-                mutex.lock();
+                lock.lock();
+
+                if (!isOpen || permanentlyFailed)
+                {
+                    return false;
+                }
             }
 
             capture.set(cv::CAP_PROP_OPEN_TIMEOUT_MSEC, static_cast<double>(grabTimeoutMs));

@@ -125,6 +125,13 @@
             }
         },
         {
+            "name": "ninja-release",
+            "configurePreset": "ninja-release",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
             "name": "visual-studio-debug",
             "configurePreset": "visual-studio",
             "configuration": "Debug",

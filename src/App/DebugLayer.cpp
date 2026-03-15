@@ -68,13 +68,7 @@ namespace SH3DS::App
 
     DebugLayer::~DebugLayer()
     {
-        if (isRecording)
-        {
-            videoWriter.release();
-            LOG_INFO("Recording saved to {}", recordPath);
-        }
-
-        // Stop capture thread before tearing down OpenGL/ImGui
+        // Stop capture thread first — ProcessFrame must not run after we release resources
         if (captureRunning)
         {
             captureRunning = false;
@@ -82,6 +76,12 @@ namespace SH3DS::App
             {
                 captureThread.join();
             }
+        }
+
+        if (isRecording)
+        {
+            videoWriter.release();
+            LOG_INFO("Recording saved to {}", recordPath);
         }
 
         ImGui_ImplOpenGL3_Shutdown();
@@ -188,7 +188,7 @@ namespace SH3DS::App
 
     void DebugLayer::ProcessFrame(const Core::Frame &frame)
     {
-        currentRawFrame = frame.image.clone();
+        currentRawFrame = frame.image; // shallow refcounted copy — O(1), data lifetime managed by refcount
         rawWidth = currentRawFrame.cols;
         rawHeight = currentRawFrame.rows;
 
@@ -319,9 +319,16 @@ namespace SH3DS::App
                     }
                     ++totalFramesGrabbed;
                 }
+                else if (!source->IsOpen())
+                {
+                    // Source permanently closed (exhausted reconnects) — exit capture thread
+                    LOG_WARN("DebugLayer: frame source closed, stopping capture thread");
+                    captureRunning = false;
+                    break;
+                }
                 else
                 {
-                    // Avoid busy-spin on error / stream end
+                    // Transient failure — avoid busy-spin
                     std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 }
             }

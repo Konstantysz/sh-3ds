@@ -29,7 +29,8 @@ namespace
                  "cutscene_part_2",
                  "game_menu",
                  "party_menu",
-                 "pokemon_summary" })
+                 "pokemon_summary",
+                 "resetting" })
         {
             params.stateParams[id] = defaultSp;
         }
@@ -94,6 +95,23 @@ TEST(HuntProfiles, CreateXYStarterSRThrowsForRemovedStates)
     catch (const std::runtime_error &e)
     {
         EXPECT_NE(std::string(e.what()).find("game_menu"), std::string::npos)
+            << "Error message should name the missing state; got: " << e.what();
+    }
+}
+
+TEST(HuntProfiles, CreateXYStarterSRThrowsForMissingResettingState)
+{
+    auto params = MakeCompleteParams();
+    params.stateParams.erase("resetting");
+
+    try
+    {
+        SH3DS::FSM::HuntProfiles::CreateXYStarterSR(params);
+        FAIL() << "Expected std::runtime_error for missing resetting state";
+    }
+    catch (const std::runtime_error &e)
+    {
+        EXPECT_NE(std::string(e.what()).find("resetting"), std::string::npos)
             << "Error message should name the missing state; got: " << e.what();
     }
 }
