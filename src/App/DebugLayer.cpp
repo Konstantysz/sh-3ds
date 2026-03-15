@@ -319,9 +319,16 @@ namespace SH3DS::App
                     }
                     ++totalFramesGrabbed;
                 }
+                else if (!source->IsOpen())
+                {
+                    // Source permanently closed (exhausted reconnects) — exit capture thread
+                    LOG_WARN("DebugLayer: frame source closed, stopping capture thread");
+                    captureRunning = false;
+                    break;
+                }
                 else
                 {
-                    // Avoid busy-spin on error / stream end
+                    // Transient failure — avoid busy-spin
                     std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 }
             }
