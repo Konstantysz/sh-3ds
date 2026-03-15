@@ -19,6 +19,7 @@ namespace SH3DS::Capture
     {
         std::lock_guard<std::mutex> lock(mutex);
 
+        capture.release();
         permanentlyFailed = false;
         currentReconnectAttempts = 0;
         frameCounter = 0;
