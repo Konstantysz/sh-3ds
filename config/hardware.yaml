@@ -5,9 +5,14 @@ camera:
   #   reconnect_delay_ms: 2000
   #   max_reconnect_attempts: 10
   #   grab_timeout_ms: 5000
+  #   rotation_degrees: 0   # 0 / 90 / 180 / 270 clockwise
   # USB camera (future): type: "usb", uri: "0"
-  type: "file"
-  uri: "video_replays/fennekin_normal/images"
+  type: "mjpeg"
+  uri: "http://192.168.0.111:8080/video"
+  reconnect_delay_ms: 2000
+  max_reconnect_attempts: 5
+  grab_timeout_ms: 5000
+  rotation_degrees: 90
 
 console:
   type: "luma3ds"

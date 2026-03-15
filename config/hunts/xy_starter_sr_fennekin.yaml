@@ -49,7 +49,15 @@ fsm_states:
   load_game:
     top:
       roi: "top_full"
-      method: "intensity_event"
+      method: "always_true"
+      threshold: 0.5
+    bottom:
+      roi: "top_full"
+      method: "color_histogram"
+      hsv_lower: [0, 0, 180]
+      hsv_upper: [179, 60, 255]
+      pixel_ratio_min: 0.4
+      pixel_ratio_max: 1.0
       threshold: 0.5
 
   game_start:
@@ -104,6 +112,16 @@ fsm_states:
     bottom:
       roi: "top_full"
       method: "always_true"
+      threshold: 0.5
+
+  resetting:
+    top:
+      roi: "top_full"
+      method: "color_histogram"
+      hsv_lower: [0, 0, 0]
+      hsv_upper: [179, 255, 50]
+      pixel_ratio_min: 0.3
+      pixel_ratio_max: 1.0
       threshold: 0.5
 
 # Shiny detector (dominant color method)

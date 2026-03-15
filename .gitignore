@@ -44,6 +44,9 @@ scripts/
 logs/
 *.log
 
+# ImGui layout state
+imgui_*.ini
+
 # OS
 .DS_Store
 Thumbs.db

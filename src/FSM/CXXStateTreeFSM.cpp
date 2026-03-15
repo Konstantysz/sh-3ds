@@ -148,6 +148,8 @@ namespace SH3DS::FSM
         pendingFrameCount = 0;
         raisesAtLastTransition = topIntensityDetector.GetEvents().size();
 
+        LOG_INFO(
+            "FSM transition: {} -> {} at intensity frame {}", transition.from, transition.to, intensityFrameCounter);
         RecordTransition(transition);
 
         return transition;
