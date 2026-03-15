@@ -141,3 +141,24 @@ TEST_F(MjpegFrameSourceTest, DoesNotImplementFrameSeeker)
     SH3DS::Capture::FrameSeeker *seeker = dynamic_cast<SH3DS::Capture::FrameSeeker *>(&source);
     EXPECT_EQ(seeker, nullptr);
 }
+
+TEST_F(MjpegFrameSourceTest, ReopenResetsSequenceNumberAndProducesFrames)
+{
+    SH3DS::Capture::MjpegFrameSource source(MakeConfig(videoPath.string()));
+    ASSERT_TRUE(source.Open());
+
+    auto firstFrame = source.Grab();
+    ASSERT_TRUE(firstFrame.has_value());
+    EXPECT_EQ(firstFrame->metadata.sequenceNumber, 0u);
+
+    source.Close();
+    EXPECT_FALSE(source.IsOpen());
+
+    ASSERT_TRUE(source.Open());
+    EXPECT_TRUE(source.IsOpen());
+
+    auto frameAfterReopen = source.Grab();
+    ASSERT_TRUE(frameAfterReopen.has_value());
+    EXPECT_EQ(frameAfterReopen->metadata.sequenceNumber, 0u);
+    EXPECT_FALSE(frameAfterReopen->image.empty());
+}
