@@ -118,11 +118,12 @@ namespace SH3DS::App
         PlaybackController playback; ///< Playback state controller
 
         // Live mode
-        bool isLiveSource = false;                         ///< True when seeker == nullptr (live camera)
-        std::thread captureThread;                         ///< Background capture thread (live only)
-        std::atomic<bool> captureRunning{ false };         ///< Signals capture thread to stop
-        std::mutex latestFrameMutex;                       ///< Guards latestFrame
-        std::optional<Core::Frame> latestFrame;            ///< Latest frame from capture thread
+        bool isLiveSource = false;                 ///< True when seeker == nullptr (live camera)
+        std::thread captureThread;                 ///< Background capture thread (live only)
+        std::atomic<bool> captureRunning{ false }; ///< Signals capture thread to stop
+        std::mutex latestFrameMutex;               ///< Guards latestFrame
+        std::optional<Core::Frame> latestFrame;    ///< Latest frame from capture thread; single-slot — older frames are
+                                                   ///< dropped if render thread hasn't consumed them yet
         std::atomic<size_t> totalFramesGrabbed{ 0 };       ///< Monotonically increasing grab counter
         float liveGrabFps = 0.0f;                          ///< Estimated grab FPS (render thread)
         std::chrono::steady_clock::time_point lastFpsTime; ///< Timestamp for FPS estimation
