@@ -44,9 +44,10 @@ namespace SH3DS::Capture
     private:
         /**
          * @brief Attempts to reconnect up to maxReconnectAttempts times.
+         * @param lock The unique_lock already held by the caller (may be temporarily released during sleep).
          * @return True if reconnection succeeded.
          */
-        bool TryReconnect();
+        bool TryReconnect(std::unique_lock<std::mutex> &lock);
 
         std::string uri;                  ///< Stream URI (HTTP URL or local file path)
         int reconnectDelayMs;             ///< Delay between reconnect attempts in ms
