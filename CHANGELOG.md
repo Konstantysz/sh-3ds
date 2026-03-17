@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1] - 2026-03-17
+
+### Added
+
+- Initial README with architecture overview, build instructions, configuration reference, and hunt profile documentation
+
 ## [0.2.0] - 2026-03-15
 
 ### Added
